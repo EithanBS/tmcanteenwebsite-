@@ -30,6 +30,31 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
+  // Load persisted cart on mount and expire after 1 hour
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("cart_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw) as { items: CartItem[]; savedAt: number };
+        if (parsed && Array.isArray(parsed.items) && typeof parsed.savedAt === "number") {
+          const ageMs = Date.now() - parsed.savedAt;
+          if (ageMs < 60 * 60 * 1000) {
+            setCart(parsed.items);
+          } else {
+            localStorage.removeItem("cart_v1");
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Persist cart whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("cart_v1", JSON.stringify({ items: cart, savedAt: Date.now() }));
+    } catch {}
+  }, [cart]);
+
   // Check if user is logged in and load data
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -152,11 +177,13 @@ export default function StudentDashboard() {
   // Clear entire cart
   const handleClearCart = () => {
     setCart([]);
+    try { localStorage.removeItem("cart_v1"); } catch {}
   };
 
   // Handle successful checkout
   const handleCheckout = () => {
     setCart([]);
+    try { localStorage.removeItem("cart_v1"); } catch {}
     if (user) {
       fetchUserBalance(user.id);
     }

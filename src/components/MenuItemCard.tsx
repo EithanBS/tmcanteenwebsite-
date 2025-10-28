@@ -55,17 +55,19 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
             </span>
           </div>
         </div>
-        <div>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g., less ice"
-            className="w-full h-9 rounded bg-secondary/30 border border-primary/20 px-3 text-sm placeholder:text-muted-foreground/60"
-          />
-        </div>
+        {!isFood && (
+          <div>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g., less ice"
+              className="w-full h-9 rounded bg-secondary/30 border border-primary/20 px-3 text-sm placeholder:text-muted-foreground/60"
+            />
+          </div>
+        )}
         
         <Button
-          onClick={() => onAddToCart(item, note.trim() || undefined)}
+          onClick={() => onAddToCart(item, isFood ? undefined : (note.trim() || undefined))}
           disabled={isOutOfStock}
           className="w-full glow-border"
         >
