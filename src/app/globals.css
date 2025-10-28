@@ -52,7 +52,7 @@
 :root {
   --radius: 0.625rem;
   --scroll: 0; /* updated dynamically for parallax */
-  --background: oklch(0.08 0 0);
+  --background: oklch(0.12 0 0);
   --foreground: oklch(0.95 0 0);
   --card: oklch(0.12 0.02 240);
   --card-foreground: oklch(0.95 0 0);
@@ -131,12 +131,12 @@
     @apply bg-background text-foreground;
   }
   
-  /* Solo Leveling inspired glass card effect */
+  /* Brighter glass base so cards don't darken */
   .glass-card {
-    background: rgba(18, 18, 35, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(100, 150, 255, 0.3);
-    box-shadow: 0 0 20px rgba(100, 150, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+    backdrop-filter: blur(12px) saturate(1.15);
+    border: 1px solid rgba(120, 180, 255, 0.45);
+    box-shadow: 0 10px 30px rgba(70,120,255,.12), inset 0 0 0 1px rgba(255,255,255,.05);
   }
   
   /* Glowing blue border effect */
@@ -173,23 +173,23 @@
   .app-parallax-bg {
     position: fixed;
     inset: 0;
-    z-index: 5; /* above page backgrounds, below content */
+    z-index: 0;
     pointer-events: none;
     background-image:
       radial-gradient(1200px 600px at calc(50% + calc(var(--scroll) * 0.1px)) -100px,
-        color-mix(in oklab, var(--glow-purple) 30%, transparent) 0%,
+        color-mix(in oklab, var(--glow-purple) 20%, transparent) 0%,
         transparent 60%),
       radial-gradient(1000px 500px at calc(20% + calc(var(--scroll) * -0.05px)) 10%,
-        color-mix(in oklab, var(--glow-blue) 25%, transparent) 0%,
+        color-mix(in oklab, var(--glow-blue) 18%, transparent) 0%,
         transparent 60%),
       linear-gradient(180deg,
-        color-mix(in oklab, var(--background) 100%, black 0%) 0%,
-        color-mix(in oklab, var(--background) 92%, black 8%) 50%,
-        color-mix(in oklab, var(--background) 85%, black 15%) 100%);
+        color-mix(in oklab, var(--background) 100%, white 0%) 0%,
+        color-mix(in oklab, var(--background) 96%, white 4%) 50%,
+        color-mix(in oklab, var(--background) 92%, white 8%) 100%);
     background-repeat: no-repeat;
     background-size: cover, cover, cover;
     filter: saturate(1.15);
-    opacity: 0.45;
+    opacity: 0.2;
   }
 
   /* Soft animated dust/noise overlay */
@@ -207,29 +207,32 @@
   /* Ensure app content sits above the overlay */
   .app-content {
     position: relative;
-    z-index: 10;
+    z-index: 1;
   }
 
   /* Liquid glass effect for cards */
-  .glass-card {
-    position: relative;
-    overflow: hidden;
-  }
-
+  .glass-card { position: relative; overflow: hidden; }
   .glass-card::before {
-    content: "";
-    position: absolute;
-    inset: -30%;
+    content: ""; position: absolute; inset: -30%;
     background:
-      radial-gradient(40% 60% at 20% 30%, rgba(100,150,255,0.20), transparent 60%),
-      radial-gradient(35% 55% at 70% 60%, rgba(170,120,255,0.18), transparent 60%),
-      radial-gradient(60% 40% at 40% 80%, rgba(255,255,255,0.06), transparent 60%);
-    filter: blur(30px) saturate(1.2);
+      radial-gradient(40% 60% at 20% 30%, rgba(100,150,255,0.25), transparent 60%),
+      radial-gradient(35% 55% at 70% 60%, rgba(170,120,255,0.22), transparent 60%),
+      radial-gradient(60% 40% at 40% 80%, rgba(255,255,255,0.10), transparent 60%);
+    filter: blur(26px) saturate(1.25);
     transform: translate3d(0, 0, 0);
     animation: liquidFlow 12s ease-in-out infinite alternate;
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.9;
   }
+
+  /* Sheen sweep on hover to emphasize liquid surface */
+  .glass-card::after {
+    content: ""; position: absolute; top: -100%; left: -150%; width: 120%; height: 300%;
+    transform: rotate(20deg);
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.20) 50%, transparent 100%);
+    opacity: 0; transition: opacity .3s ease, transform .6s ease; pointer-events: none;
+  }
+  .glass-card:hover::after { opacity: .5; transform: rotate(20deg) translateX(30%); }
 
   @keyframes liquidFlow {
     0% { transform: translate3d(-4%, -2%, 0) scale(1.05); }
