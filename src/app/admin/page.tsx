@@ -108,8 +108,6 @@ export default function AdminDashboard() {
       const { data, error } = await supabase
         .from("menu_items")
         .select("*")
-        .order("owner_id", { ascending: true })
-        .order("category", { ascending: true })
         .order("name", { ascending: true });
 
       if (error) throw error;

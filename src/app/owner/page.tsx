@@ -125,7 +125,6 @@ export default function OwnerDashboard() {
         .from("menu_items")
         .select("*")
         .eq("owner_id", ownerId)
-        .order("category", { ascending: true })
         .order("name", { ascending: true });
 
       if (error) throw error;
