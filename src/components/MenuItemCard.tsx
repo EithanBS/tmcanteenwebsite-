@@ -19,13 +19,13 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
   const [note, setNote] = useState("");
 
   return (
-    <Card className="overflow-hidden glass-card glow-border hover:glow-pulse transition-all">
-      <div className="aspect-square relative bg-secondary/30">
+    <Card className="overflow-hidden glass-card glow-border transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl hover:glow-pulse">
+      <div className="aspect-square relative bg-secondary/30 group">
         <Image
           src={(item as any).image_url ?? (item as any).image ?? ""}
           alt={item.name}
           fill
-          className="object-cover"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
           unoptimized
         />
         {isOutOfStock && (
@@ -61,7 +61,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g., less ice"
-              className="w-full h-9 rounded bg-secondary/30 border border-primary/20 px-3 text-sm placeholder:text-muted-foreground/60"
+              className="w-full h-9 rounded bg-secondary/30 border border-primary/20 px-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/30 transition"
             />
           </div>
         )}
@@ -69,7 +69,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
         <Button
           onClick={() => onAddToCart(item, isFood ? undefined : (note.trim() || undefined))}
           disabled={isOutOfStock}
-          className="w-full glow-border"
+          className="w-full glow-border transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
         >
           {isOutOfStock ? "Out of Stock" : "Add to Cart"}
         </Button>
