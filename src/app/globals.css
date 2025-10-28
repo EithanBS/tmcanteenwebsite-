@@ -51,6 +51,7 @@
 
 :root {
   --radius: 0.625rem;
+  --scroll: 0; /* updated dynamically for parallax */
   --background: oklch(0.08 0 0);
   --foreground: oklch(0.95 0 0);
   --card: oklch(0.12 0.02 240);
@@ -166,6 +167,45 @@
   
   .glow-pulse {
     animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* Parallax background with layered gradients and subtle noise */
+  .app-parallax-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(1200px 600px at calc(50% + calc(var(--scroll) * 0.1px)) -100px,
+        color-mix(in oklab, var(--glow-purple) 30%, transparent) 0%,
+        transparent 60%),
+      radial-gradient(1000px 500px at calc(20% + calc(var(--scroll) * -0.05px)) 10%,
+        color-mix(in oklab, var(--glow-blue) 25%, transparent) 0%,
+        transparent 60%),
+      linear-gradient(180deg,
+        color-mix(in oklab, var(--background) 100%, black 0%) 0%,
+        color-mix(in oklab, var(--background) 92%, black 8%) 50%,
+        color-mix(in oklab, var(--background) 85%, black 15%) 100%);
+    background-repeat: no-repeat;
+    background-size: cover, cover, cover;
+    filter: saturate(1.15);
+  }
+
+  /* Soft animated dust/noise overlay */
+  .app-parallax-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255 255 255 / 0.04) 1px, transparent 1px);
+    background-size: 3px 3px;
+    opacity: 0.35;
+    animation: noiseFloat 12s ease-in-out infinite alternate;
+    mask-image: radial-gradient(closest-side at 50% 50%, black 60%, transparent 100%);
+  }
+
+  @keyframes noiseFloat {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(0, -2%, 0); }
   }
   
   /* Status indicators */

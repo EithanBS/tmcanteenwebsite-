@@ -17,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <div className="app-parallax-bg" aria-hidden />
         <ErrorReporter />
         <Script
           src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts//route-messenger.js"
@@ -29,6 +30,15 @@ export default function RootLayout({
           data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
         />
         {children}
+        <Script id="parallax-scroll" strategy="afterInteractive">
+          {`
+            (function(){
+              let ticking=false;function onScroll(){if(!ticking){window.requestAnimationFrame(function(){document.documentElement.style.setProperty('--scroll', String(window.scrollY||0));ticking=false;});ticking=true;}}
+              window.addEventListener('scroll', onScroll, { passive: true });
+              onScroll();
+            })();
+          `}
+        </Script>
         <VisualEditsMessenger />
       </body>
     </html>
