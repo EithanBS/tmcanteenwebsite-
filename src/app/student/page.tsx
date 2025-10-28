@@ -17,6 +17,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  note?: string;
 }
 
 type CategoryFilter = "all" | "food" | "drink";
@@ -113,18 +114,34 @@ export default function StudentDashboard() {
   });
 
   // Add item to cart
-  const handleAddToCart = (item: MenuItem) => {
+  const handleAddToCart = (item: MenuItem, note?: string) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
       if (existingItem) {
         return prevCart.map((cartItem) =>
           cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            ? { ...cartItem, quantity: cartItem.quantity + 1, note: note ?? cartItem.note }
             : cartItem
         );
       }
-      return [...prevCart, { id: item.id, name: item.name, price: item.price, quantity: 1 }];
+      return [...prevCart, { id: item.id, name: item.name, price: item.price, quantity: 1, note }];
     });
+    // Simple top toast
+    const toastDiv = document.createElement('div');
+    toastDiv.textContent = `Added to cart: ${item.name}`;
+    toastDiv.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded shadow glow-border';
+    document.body.appendChild(toastDiv);
+    setTimeout(() => {
+      toastDiv.remove();
+    }, 1500);
+  };
+
+  const incrementQty = (id: string) => {
+    setCart((prev) => prev.map((ci) => (ci.id === id ? { ...ci, quantity: ci.quantity + 1 } : ci)));
+  };
+
+  const decrementQty = (id: string) => {
+    setCart((prev) => prev.map((ci) => (ci.id === id ? { ...ci, quantity: Math.max(1, ci.quantity - 1) } : ci)));
   };
 
   // Remove item from cart
@@ -260,6 +277,8 @@ export default function StudentDashboard() {
               onClearCart={handleClearCart}
               onCheckout={handleCheckout}
               userBalance={user.wallet_balance}
+              onIncrementQty={incrementQty}
+              onDecrementQty={decrementQty}
             />
           </TabsContent>
 

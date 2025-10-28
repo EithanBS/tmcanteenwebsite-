@@ -11,6 +11,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  note?: string;
 }
 
 interface CartProps {
@@ -19,10 +20,12 @@ interface CartProps {
   onClearCart: () => void;
   onCheckout: () => void;
   userBalance: number;
+  onIncrementQty?: (id: string) => void;
+  onDecrementQty?: (id: string) => void;
 }
 
 // Cart component showing items, total, and checkout functionality
-export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, userBalance }: CartProps) {
+export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, userBalance, onIncrementQty, onDecrementQty }: CartProps) {
   const [loading, setLoading] = useState(false);
 
   // Calculate total price of all items in cart
@@ -141,8 +144,16 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
               <p className="text-sm text-muted-foreground">
                 Rp {item.price.toLocaleString('id-ID')} × {item.quantity}
               </p>
+            {item.note && (
+              <p className="text-xs text-muted-foreground/80 mt-1">Note: {item.note}</p>
+            )}
             </div>
             <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => onDecrementQty?.(item.id)}>-</Button>
+              <span className="w-6 text-center">{item.quantity}</span>
+              <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => onIncrementQty?.(item.id)}>+</Button>
+            </div>
               <span className="font-semibold">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
               <Button
                 variant="ghost"

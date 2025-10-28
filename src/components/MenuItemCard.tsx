@@ -1,13 +1,14 @@
 "use client";
 
 import { MenuItem } from "@/lib/supabase";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 
 interface MenuItemCardProps {
   item: MenuItem;
-  onAddToCart: (item: MenuItem) => void;
+  onAddToCart: (item: MenuItem, note?: string) => void;
 }
 
 // Component to display a single menu item with image, name, price, stock
@@ -15,6 +16,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
   const isOutOfStock = item.stock === 0;
   const normalizedCategory = (item.category as any)?.toString().trim().toLowerCase();
   const isFood = normalizedCategory === "food";
+  const [note, setNote] = useState("");
 
   return (
     <Card className="overflow-hidden glass-card glow-border hover:glow-pulse transition-all">
@@ -53,9 +55,17 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
             </span>
           </div>
         </div>
+        <div>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g., less ice"
+            className="w-full h-9 rounded bg-secondary/30 border border-primary/20 px-3 text-sm placeholder:text-muted-foreground/60"
+          />
+        </div>
         
         <Button
-          onClick={() => onAddToCart(item)}
+          onClick={() => onAddToCart(item, note.trim() || undefined)}
           disabled={isOutOfStock}
           className="w-full glow-border"
         >
