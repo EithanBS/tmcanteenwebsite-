@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
-  const [role, setRole] = useState<"student" | "owner" | "admin">("student");
+  // Role is fixed to student for self-registration
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,7 +56,7 @@ export default function RegisterPage() {
             email,
             password,
             pin,
-            role,
+            role: "student",
             wallet_balance: 0, // Start with zero balance
           },
         ])
@@ -144,19 +144,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "student" | "owner" | "admin")}
-              className="w-full px-3 py-2 rounded-md bg-secondary/50 border border-primary/30 text-foreground"
-            >
-              <option value="student">Student</option>
-              <option value="owner">Canteen Owner</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+          {/* Role is not selectable; new users are students by default */}
 
           {error && (
             <div className="p-3 rounded-lg bg-destructive/20 border border-destructive/50 text-destructive text-sm">
