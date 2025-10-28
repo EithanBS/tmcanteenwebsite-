@@ -192,9 +192,9 @@ export default function OwnerDashboard() {
       alert("Menu item updated successfully! 🎉");
       cancelEditing();
       if (user) fetchMenuItems(user.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating menu item:", error);
-      alert("Failed to update menu item");
+      alert(`Failed to update menu item${error?.message ? `: ${error.message}` : ''}`);
     }
   };
 

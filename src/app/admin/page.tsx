@@ -184,30 +184,36 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Try updating with image_url; also include image for compatibility
+      const currentItem = menuItems.find((m) => (m.id as any) == (editingMenuId as any));
       const updatePayload: any = {
         name: editMenuName,
         price,
         stock,
         owner_id: editMenuOwnerId,
         category: editMenuCategory,
-        image_url: editMenuImage,
-        image: editMenuImage,
       };
+      if (currentItem) {
+        if ((currentItem as any).hasOwnProperty('image_url')) {
+          updatePayload.image_url = editMenuImage;
+        } else if ((currentItem as any).hasOwnProperty('image')) {
+          updatePayload.image = editMenuImage;
+        }
+      }
 
+      const targetId: any = currentItem ? currentItem.id : editingMenuId;
       const { error } = await supabase
         .from("menu_items")
         .update(updatePayload)
-        .eq("id", editingMenuId);
+        .eq("id", targetId);
 
-      if (error) throw error;
+      if (error) throw error as any;
 
       alert("Menu item updated!");
       cancelEditMenuItem();
       fetchMenuItems();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating menu item:", error);
-      alert("Failed to update menu item");
+      alert(`Failed to update menu item${error?.message ? `: ${error.message}` : ''}`);
     }
   };
 
