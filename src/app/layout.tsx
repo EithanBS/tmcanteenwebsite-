@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased app-content">
         <div className="app-parallax-bg" aria-hidden />
         <ErrorReporter />
         <Script
