@@ -17,9 +17,12 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
   const normalizedCategory = (item.category as any)?.toString().trim().toLowerCase();
   const isFood = normalizedCategory === "food";
   const [note, setNote] = useState("");
+  const lowStock = !isOutOfStock && item.stock <= 5;
 
   return (
-    <Card className="overflow-hidden glass-card glow-border transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl hover:glow-pulse">
+    <Card className="overflow-hidden glass-card glow-border transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl hover:glow-pulse relative">
+      {/* Subtle gradient ring */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--primary)/15%,transparent_60%)]" />
       <div className="aspect-square relative bg-secondary/30 group">
         <Image
           src={(item as any).image_url ?? (item as any).image ?? ""}
@@ -29,17 +32,24 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
           unoptimized
         />
         {isOutOfStock && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-            <span className="text-destructive font-bold text-lg">OUT OF STOCK</span>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80 backdrop-blur-[2px] flex items-center justify-center">
+            <span className="text-destructive font-bold text-lg tracking-wide">OUT OF STOCK</span>
           </div>
         )}
         {/* Category Badge */}
-        <div className="absolute top-2 right-2">
-          <span className={`text-xs px-2 py-1 rounded-full font-semibold backdrop-blur-sm ${
-            isFood 
-              ? "bg-primary/80 text-primary-foreground" 
-              : "bg-blue-500/80 text-white"
-          }`}>
+        <div className="absolute top-2 right-2 flex gap-2">
+          {lowStock && (
+            <span className="text-[10px] px-2 py-1 rounded-full font-semibold bg-amber-500/90 text-black shadow-sm">
+              Low stock: {item.stock}
+            </span>
+          )}
+          <span
+            className={`text-xs px-2 py-1 rounded-full font-semibold backdrop-blur-sm shadow-sm ${
+              isFood
+                ? "bg-primary/80 text-primary-foreground"
+                : "bg-blue-500/80 text-white"
+            }`}
+          >
             {isFood ? "🍛 FOOD" : "☕ DRINK"}
           </span>
         </div>
@@ -47,11 +57,22 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
       
       <div className="p-4 space-y-3">
         <div>
-          <h3 className="font-semibold text-lg">{item.name}</h3>
+          <h3 className="font-semibold text-lg tracking-tight">{item.name}</h3>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-2xl font-bold glow-text">Rp {item.price.toLocaleString('id-ID')}</span>
-            <span className={`text-sm ${isOutOfStock ? 'text-destructive' : 'text-muted-foreground'}`}>
-              Stock: {item.stock}
+            <span className="text-2xl font-bold glow-text">
+              <span className="text-primary/80">Rp</span> {item.price.toLocaleString('id-ID')}
+            </span>
+            <span
+              className={`text-xs px-2 py-1 rounded-full border ${
+                isOutOfStock
+                  ? 'bg-destructive/15 text-destructive border-destructive/30'
+                  : lowStock
+                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                  : 'bg-secondary/40 text-foreground/80 border-primary/10'
+              }`}
+              title={`${item.stock} in stock`}
+            >
+              {isOutOfStock ? 'Out' : `${item.stock} left`}
             </span>
           </div>
         </div>
@@ -70,6 +91,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
           onClick={() => onAddToCart(item, isFood ? undefined : (note.trim() || undefined))}
           disabled={isOutOfStock}
           className="w-full glow-border transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
+          title={isOutOfStock ? 'No stock available' : undefined}
         >
           {isOutOfStock ? "Out of Stock" : "Add to Cart"}
         </Button>

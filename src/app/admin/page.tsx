@@ -347,6 +347,36 @@ export default function AdminDashboard() {
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
+  // Helpers for Transactions view
+  const getUserName = (userId: string | null | undefined) => {
+    if (!userId) return "Unknown";
+    const u = users.find((x) => x.id === userId);
+    return u ? u.name : "Unknown";
+  };
+
+  const findMatchingOrder = (tx: Transaction) => {
+    if (tx.type !== "order") return null;
+    // Find orders by same user and amount; choose one nearest in time
+    const candidates = orders.filter(
+      (o) => o.user_id === tx.sender_id && o.total_price === tx.amount
+    );
+    if (candidates.length === 0) return null;
+    const txTime = new Date(tx.timestamp).getTime();
+    let best = candidates[0];
+    let bestDelta = Math.abs(new Date(best.created_at).getTime() - txTime);
+    for (let i = 1; i < candidates.length; i++) {
+      const c = candidates[i];
+      const delta = Math.abs(new Date(c.created_at).getTime() - txTime);
+      if (delta < bestDelta) {
+        best = c;
+        bestDelta = delta;
+      }
+    }
+    // If too far apart (> 10 minutes), consider no match to avoid incorrect pairing
+    if (bestDelta > 10 * 60 * 1000) return null;
+    return best;
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -840,32 +870,60 @@ export default function AdminDashboard() {
               </Card>
             ) : (
               <div className="grid gap-3">
-                {transactions.map((transaction) => (
-                  <Card key={transaction.id} className="p-4 glass-card glow-border">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">
-                          {transaction.type === "topup"
-                            ? "Top Up"
-                            : transaction.type === "order"
-                            ? "Order Payment"
-                            : "Transfer"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(transaction.timestamp).toLocaleString()}
-                        </p>
+                {transactions.map((tx) => {
+                  const order = findMatchingOrder(tx);
+                  const buyerName = getUserName(tx.sender_id);
+                  return (
+                    <Card key={tx.id} className="p-4 glass-card glow-border">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">
+                              {tx.type === "topup"
+                                ? "Top Up"
+                                : tx.type === "order"
+                                ? "Order Payment"
+                                : "Transfer"}
+                            </p>
+                            <span className="text-xs text-muted-foreground">•</span>
+                            <p className="text-sm text-muted-foreground">{buyerName}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(tx.timestamp).toLocaleString()}
+                          </p>
+
+                          {/* Order detail lines for order transactions */}
+                          {tx.type === "order" && order && (
+                            <div className="mt-2 space-y-1">
+                              {order.items.map((it, idx) => (
+                                <div key={idx} className="flex justify-between text-sm bg-secondary/20 rounded px-2 py-1">
+                                  <span>
+                                    {it.name} × {it.quantity}
+                                  </span>
+                                  <span>Rp {(it.price * it.quantity).toLocaleString('id-ID')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {tx.type === "order" && !order && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Order details not found
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right min-w-[140px]">
+                          <p className="text-xl font-bold glow-text">
+                            Rp {tx.amount.toLocaleString('id-ID')}
+                          </p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {tx.type}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold glow-text">
-                          Rp {transaction.amount.toLocaleString('id-ID')}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {transaction.type}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>

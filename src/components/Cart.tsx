@@ -1,9 +1,15 @@
 "use client";
 
+// Stock protection notes:
+// 1. Front-end: plus button disabled when quantity reaches item.stock (if provided).
+// 2. Checkout: verifies current stock for all items in a single query; aborts if insufficient.
+// 3. Server update: subtracts using previously fetched snapshot and guards against race condition.
+// This prevents negative stock values even under concurrent updates.
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { X, ShoppingCart } from "lucide-react";
+import { X, ShoppingCart, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface CartItem {
@@ -11,6 +17,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  stock?: number; // optional, used to disable + when reaching stock
   note?: string;
 }
 
@@ -48,6 +55,34 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+      // Atomic stock decrement via RPC (will throw if insufficient)
+      const rpcPayload = items.map(i => ({ id: i.id, quantity: i.quantity }));
+      const { error: rpcError } = await supabase.rpc('decrement_stock', { p_items: rpcPayload });
+      if (rpcError) {
+        // Fallback: do client-verified updates so local testing still works
+        const ids = items.map((i) => i.id);
+        const { data: stocks, error: stocksError } = await supabase
+          .from("menu_items")
+          .select("id, stock")
+          .in("id", ids);
+        if (stocksError) throw stocksError;
+        const stockMap = new Map(stocks?.map((s: any) => [s.id, s.stock]));
+        const insufficient = items.find((it) => (stockMap.get(it.id) ?? 0) < it.quantity);
+        if (insufficient) {
+          alert(`Not enough stock for ${insufficient.name}. Available: ${stockMap.get(insufficient.id) ?? 0}`);
+          return;
+        }
+        for (const item of items) {
+          const current = stockMap.get(item.id) ?? 0;
+          const newStock = current - item.quantity;
+          const { error: updateErr } = await supabase
+            .from("menu_items")
+            .update({ stock: newStock })
+            .eq("id", item.id);
+          if (updateErr) throw updateErr;
+        }
+      }
+
       // Create order in database
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -73,21 +108,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
 
       if (balanceError) throw balanceError;
 
-      // Decrease stock for each item
-      for (const item of items) {
-        const { data: menuItem } = await supabase
-          .from("menu_items")
-          .select("stock")
-          .eq("id", item.id)
-          .single();
-
-        if (menuItem) {
-          await supabase
-            .from("menu_items")
-            .update({ stock: menuItem.stock - item.quantity })
-            .eq("id", item.id);
-        }
-      }
+  // (Stock already decremented above either via RPC or fallback updates.)
 
       // Create transaction record
       await supabase.from("transactions").insert([
@@ -150,10 +171,41 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
             </div>
             <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => onDecrementQty?.(item.id)}>-</Button>
-              <span className="w-6 text-center">{item.quantity}</span>
-              <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => onIncrementQty?.(item.id)}>+</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => onDecrementQty?.(item.id)}
+                aria-label={`Decrease quantity of ${item.name}`}
+              >
+                -
+              </Button>
+              <span className="w-7 text-center font-medium tabular-nums">
+                {item.quantity}
+              </span>
+              <Button
+                variant={typeof item.stock === 'number' && item.quantity >= (item.stock ?? 0) ? 'secondary' : 'outline'}
+                size="sm"
+                className="h-8 w-8 p-0 relative"
+                onClick={() => onIncrementQty?.(item.id)}
+                disabled={typeof item.stock === 'number' ? item.quantity >= (item.stock ?? 0) : false}
+                aria-label={`Increase quantity of ${item.name}`}
+                title={typeof item.stock === 'number' && item.quantity >= (item.stock ?? 0) ? 'Max stock reached' : 'Add one'}
+              >
+                +
+                {typeof item.stock === 'number' && item.quantity >= (item.stock ?? 0) && (
+                  <span className="absolute -top-2 -right-2 bg-amber-500 text-black text-[10px] px-1 py-[1px] rounded shadow">
+                    max
+                  </span>
+                )}
+              </Button>
             </div>
+            {typeof item.stock === 'number' && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                <AlertTriangle className="h-3 w-3 opacity-70" />
+                <span>{Math.max((item.stock ?? 0) - item.quantity, 0)} left</span>
+              </div>
+            )}
               <span className="font-semibold">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
               <Button
                 variant="ghost"

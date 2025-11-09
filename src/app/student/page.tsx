@@ -17,6 +17,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  stock: number; // snapshot of stock when added; refreshed on menu fetch
   note?: string;
 }
 
@@ -29,6 +30,15 @@ export default function StudentDashboard() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+
+  // Simple toast helper available to handlers below
+  const quickToast = (message: string, warn = false) => {
+    const toastDiv = document.createElement('div');
+    toastDiv.textContent = message;
+    toastDiv.className = `fixed top-4 left-1/2 -translate-x-1/2 z-50 ${warn ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'} px-4 py-2 rounded shadow glow-border text-sm`;
+    document.body.appendChild(toastDiv);
+    setTimeout(() => toastDiv.remove(), 1700);
+  };
 
   // Load persisted cart on mount and expire after 1 hour
   useEffect(() => {
@@ -104,6 +114,15 @@ export default function StudentDashboard() {
 
       if (error) throw error;
       setMenuItems(data || []);
+      // Sync cart stocks and clamp quantities if stock decreased
+      if (data) {
+        setCart((prev) => prev.map((ci) => {
+          const mi = data.find((d) => d.id === ci.id);
+          if (!mi) return ci;
+          const clampedQty = Math.min(ci.quantity, mi.stock);
+          return { ...ci, stock: mi.stock, quantity: clampedQty };
+        }));
+      }
     } catch (error) {
       console.error("Error fetching menu items:", error);
     } finally {
@@ -140,29 +159,38 @@ export default function StudentDashboard() {
 
   // Add item to cart
   const handleAddToCart = (item: MenuItem, note?: string) => {
+    // Add item to cart with stock guard
+    if (item.stock <= 0) {
+      quickToast(`Item out of stock: ${item.name}`, true);
+      return;
+    }
     setCart((prevCart) => {
       const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
       if (existingItem) {
+        if (existingItem.quantity >= existingItem.stock) {
+          quickToast(`Max stock reached for ${item.name}`, true);
+          return prevCart;
+        }
         return prevCart.map((cartItem) =>
           cartItem.id === item.id
             ? { ...cartItem, quantity: cartItem.quantity + 1, note: note ?? cartItem.note }
             : cartItem
         );
       }
-      return [...prevCart, { id: item.id, name: item.name, price: item.price, quantity: 1, note }];
+      return [...prevCart, { id: item.id, name: item.name, price: item.price, quantity: 1, stock: item.stock, note }];
     });
-    // Simple top toast
-    const toastDiv = document.createElement('div');
-    toastDiv.textContent = `Added to cart: ${item.name}`;
-    toastDiv.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded shadow glow-border';
-    document.body.appendChild(toastDiv);
-    setTimeout(() => {
-      toastDiv.remove();
-    }, 1500);
+    quickToast(`Added to cart: ${item.name}`);
   };
 
   const incrementQty = (id: string) => {
-    setCart((prev) => prev.map((ci) => (ci.id === id ? { ...ci, quantity: ci.quantity + 1 } : ci)));
+    setCart((prev) => prev.map((ci) => {
+      if (ci.id !== id) return ci;
+      if (ci.quantity >= ci.stock) {
+        quickToast(`Stock limit reached for ${ci.name}`, true);
+        return ci;
+      }
+      return { ...ci, quantity: ci.quantity + 1 };
+    }));
   };
 
   const decrementQty = (id: string) => {
