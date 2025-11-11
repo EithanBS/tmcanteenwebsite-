@@ -20,6 +20,8 @@ export default function OwnerDashboard() {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState("");
   const [editStock, setEditStock] = useState("");
+  const [editBarcodeValue, setEditBarcodeValue] = useState("");
+  const [editBarcodeImage, setEditBarcodeImage] = useState("");
 
   // Add new menu item state
   const [newName, setNewName] = useState("");
@@ -157,6 +159,8 @@ export default function OwnerDashboard() {
     setEditingItem(item.id);
     setEditPrice(item.price.toString());
     setEditStock(item.stock.toString());
+    setEditBarcodeValue((item as any).barcode_value ?? "");
+    setEditBarcodeImage((item as any).barcode_image_url ?? "");
   };
 
   // Cancel editing
@@ -184,10 +188,9 @@ export default function OwnerDashboard() {
     try {
       const { error } = await supabase
         .from("menu_items")
-        .update({ price, stock })
+        .update({ price, stock, barcode_value: editBarcodeValue || null, barcode_image_url: editBarcodeImage || null })
         .eq("id", itemId);
-
-      if (error) throw error;
+      if (error) throw error as any;
 
       alert("Menu item updated successfully! 🎉");
       cancelEditing();
@@ -461,27 +464,61 @@ export default function OwnerDashboard() {
                               {editingItem === item.id ? (
                                 // Edit Mode
                                 <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label htmlFor={`price-${item.id}`}>Price (Rp)</Label>
-                                      <Input
-                                        id={`price-${item.id}`}
-                                        type="number"
-                                        step="0.01"
-                                        value={editPrice}
-                                        onChange={(e) => setEditPrice(e.target.value)}
-                                        className="bg-secondary/50 border-primary/30"
-                                      />
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label htmlFor={`price-${item.id}`}>Price (Rp)</Label>
+                                        <Input
+                                          id={`price-${item.id}`}
+                                          type="number"
+                                          step="0.01"
+                                          value={editPrice}
+                                          onChange={(e) => setEditPrice(e.target.value)}
+                                          className="bg-secondary/50 border-primary/30"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`stock-${item.id}`}>Stock</Label>
+                                        <Input
+                                          id={`stock-${item.id}`}
+                                          type="number"
+                                          value={editStock}
+                                          onChange={(e) => setEditStock(e.target.value)}
+                                          className="bg-secondary/50 border-primary/30"
+                                        />
+                                      </div>
                                     </div>
-                                    <div>
-                                      <Label htmlFor={`stock-${item.id}`}>Stock</Label>
-                                      <Input
-                                        id={`stock-${item.id}`}
-                                        type="number"
-                                        value={editStock}
-                                        onChange={(e) => setEditStock(e.target.value)}
-                                        className="bg-secondary/50 border-primary/30"
-                                      />
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label htmlFor={`barcode-${item.id}`}>Barcode Value</Label>
+                                        <Input id={`barcode-${item.id}`} value={editBarcodeValue} onChange={(e) => setEditBarcodeValue(e.target.value)} />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`barcode-img-${item.id}`}>Barcode Image URL</Label>
+                                        <Input id={`barcode-img-${item.id}`} value={editBarcodeImage} onChange={(e) => setEditBarcodeImage(e.target.value)} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const { default: QRCode } = await import('qrcode');
+                                          const value = editBarcodeValue || item.id?.toString();
+                                          try {
+                                            const dataUrl = await QRCode.toDataURL(value, { width: 256, margin: 1 });
+                                            setEditBarcodeImage(dataUrl);
+                                            if (!editBarcodeValue) setEditBarcodeValue(value);
+                                          } catch (e) {
+                                            alert('Failed to generate QR');
+                                          }
+                                        }}
+                                      >
+                                        Generate QR
+                                      </Button>
+                                      {editBarcodeImage && (
+                                        <img src={editBarcodeImage} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
+                                      )}
                                     </div>
                                   </div>
 
@@ -517,6 +554,40 @@ export default function OwnerDashboard() {
                                       <p className={`text-2xl font-bold ${item.stock === 0 ? 'text-destructive' : ''}`}>
                                         {item.stock}
                                       </p>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label htmlFor={`barcode-${item.id}`}>Barcode Value</Label>
+                                        <Input id={`barcode-${item.id}`} value={editBarcodeValue} onChange={(e) => setEditBarcodeValue(e.target.value)} />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`barcode-img-${item.id}`}>Barcode Image URL</Label>
+                                        <Input id={`barcode-img-${item.id}`} value={editBarcodeImage} onChange={(e) => setEditBarcodeImage(e.target.value)} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const { default: QRCode } = await import('qrcode');
+                                          const value = editBarcodeValue || item.id?.toString();
+                                          try {
+                                            const dataUrl = await QRCode.toDataURL(value, { width: 256, margin: 1 });
+                                            setEditBarcodeImage(dataUrl);
+                                            if (!editBarcodeValue) setEditBarcodeValue(value);
+                                          } catch (e) {
+                                            alert('Failed to generate QR');
+                                          }
+                                        }}
+                                      >
+                                        Generate QR
+                                      </Button>
+                                      {editBarcodeImage && (
+                                        <img src={editBarcodeImage} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
+                                      )}
                                     </div>
                                   </div>
 

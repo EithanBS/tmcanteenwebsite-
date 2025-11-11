@@ -30,6 +30,8 @@ export default function AdminDashboard() {
   const [editMenuImage, setEditMenuImage] = useState("");
   const [editMenuCategory, setEditMenuCategory] = useState<"food" | "drink">("food");
   const [editMenuOwnerId, setEditMenuOwnerId] = useState("");
+  const [editMenuBarcodeValue, setEditMenuBarcodeValue] = useState("");
+  const [editMenuBarcodeImage, setEditMenuBarcodeImage] = useState("");
 
   // Add menu item state
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -159,6 +161,8 @@ export default function AdminDashboard() {
     setEditMenuImage(currentImage);
     setEditMenuCategory(item.category);
     setEditMenuOwnerId(item.owner_id);
+    setEditMenuBarcodeValue((item as any).barcode_value ?? "");
+    setEditMenuBarcodeImage((item as any).barcode_image_url ?? "");
   };
 
   const cancelEditMenuItem = () => {
@@ -191,6 +195,8 @@ export default function AdminDashboard() {
         stock,
         owner_id: editMenuOwnerId,
         category: editMenuCategory,
+        barcode_value: editMenuBarcodeValue || null,
+        barcode_image_url: editMenuBarcodeImage || null,
       };
       if (currentItem) {
         if ((currentItem as any).hasOwnProperty('image_url')) {
@@ -735,6 +741,38 @@ export default function AdminDashboard() {
                                     <div>
                                       <Label htmlFor={`edit-image-${item.id}`}>Image URL</Label>
                                       <Input id={`edit-image-${item.id}`} value={editMenuImage} onChange={(e) => setEditMenuImage(e.target.value)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <Label htmlFor={`edit-barcode-${item.id}`}>Barcode Value</Label>
+                                        <Input id={`edit-barcode-${item.id}`} value={editMenuBarcodeValue} onChange={(e) => setEditMenuBarcodeValue(e.target.value)} />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`edit-barcode-img-${item.id}`}>Barcode Image URL</Label>
+                                        <Input id={`edit-barcode-img-${item.id}`} value={editMenuBarcodeImage} onChange={(e) => setEditMenuBarcodeImage(e.target.value)} />
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-2 items-center">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const { default: QRCode } = await import('qrcode');
+                                          const value = editMenuBarcodeValue || (editingMenuId as any)?.toString() || item.id?.toString();
+                                          try {
+                                            const dataUrl = await QRCode.toDataURL(value, { width: 256, margin: 1 });
+                                            setEditMenuBarcodeImage(dataUrl);
+                                            if (!editMenuBarcodeValue) setEditMenuBarcodeValue(value);
+                                          } catch (e) {
+                                            alert('Failed to generate QR');
+                                          }
+                                        }}
+                                      >
+                                        Generate QR
+                                      </Button>
+                                      {editMenuBarcodeImage && (
+                                        <img src={editMenuBarcodeImage} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
+                                      )}
                                     </div>
                                     <div>
                                       <Label htmlFor={`edit-owner-${item.id}`}>Owner</Label>

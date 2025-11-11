@@ -28,6 +28,8 @@ export type MenuItem = {
   owner_id: string;
   category: 'food' | 'drink';
   created_at?: string;
+  barcode_image_url?: string; // optional QR/barcode image for scan mode
+  barcode_value?: string; // underlying value encoded in barcode (e.g., item id or custom code)
 };
 
 export type Order = {

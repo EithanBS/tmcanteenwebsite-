@@ -9,7 +9,7 @@ import OrderHistory from "@/components/OrderHistory";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee } from "lucide-react";
+import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 
 interface CartItem {
@@ -243,10 +243,21 @@ export default function StudentDashboard() {
               <p className="text-muted-foreground mt-1">Welcome back, {user.name}!</p>
             </div>
             <div className="flex items-center gap-4">
+              <Link href="/student/account">
+                <Button variant="outline" className="glow-border">
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  Account
+                </Button>
+              </Link>
               <Link href="/wallet">
                 <Button variant="outline" className="glow-border">
                   <Wallet className="mr-2 h-4 w-4" />
                   Rp {user.wallet_balance.toLocaleString('id-ID')}
+                </Button>
+              </Link>
+              <Link href="/student/scan">
+                <Button className="glow-border">
+                  Scan to Pay
                 </Button>
               </Link>
               <Button variant="ghost" onClick={handleLogout}>
