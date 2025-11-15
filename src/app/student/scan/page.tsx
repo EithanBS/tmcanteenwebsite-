@@ -30,17 +30,51 @@ export default function ScanToPayPage() {
     const findItem = async () => {
       if (!scannedCode) return;
       setError(null);
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('barcode_value', scannedCode)
-        .single();
-      if (error || !data) {
+      const raw = scannedCode.trim();
+      let lookedUp: MenuItem | null = null;
+
+      // Try: QR payload as JSON { type: 'item', id }
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && (parsed.id || parsed.item_id || parsed.menu_item_id)) {
+          const id = String(parsed.id || parsed.item_id || parsed.menu_item_id);
+          const { data, error } = await supabase
+            .from('menu_items')
+            .select('*')
+            .eq('id', id)
+            .single();
+          if (!error && data) lookedUp = data as any;
+        }
+      } catch (_) {
+        // not JSON, continue
+      }
+
+      // Try: direct barcode match
+      if (!lookedUp) {
+        const { data, error } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('barcode_value', raw)
+          .single();
+        if (!error && data) lookedUp = data as any;
+      }
+
+      // Try: id equals raw (if QR encodes item id directly)
+      if (!lookedUp) {
+        const { data, error } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('id', raw)
+          .single();
+        if (!error && data) lookedUp = data as any;
+      }
+
+      if (!lookedUp) {
         setItem(null);
         setError('No item found for this code');
         return;
       }
-      setItem(data as any);
+      setItem(lookedUp);
       setQuantity(1);
     };
     findItem();

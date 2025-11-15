@@ -55,9 +55,36 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
     transitioningRef.current = true;
     try {
       const cameraConfig: any = cameraId ? cameraId : { facingMode: 'environment' };
+      // Build a list of formats to support; prefer QR and include common barcodes when available
+      const F: any = Html5QrcodeSupportedFormats as any;
+      const candidateKeys = [
+        'QR_CODE',
+        'CODE_128',
+        'CODE_39',
+        'CODE_93',
+        'EAN_13',
+        'EAN_8',
+        'UPC_A',
+        'UPC_E',
+        'ITF',
+        'PDF_417',
+        'DATA_MATRIX',
+      ];
+      const formats = candidateKeys.map(k => F?.[k]).filter((v: any) => typeof v !== 'undefined');
+      // Responsive square box size (mobile/tablet/desktop). Reintroduce boxed scan region.
+      const viewport = typeof window !== 'undefined' ? window.innerWidth : 360;
+      const box = Math.max(220, Math.min(400, Math.round(viewport * 0.6))); // clamp for consistency
+      const options: any = {
+        fps: 10,
+        qrbox: { width: box, height: box },
+        formatsToSupport: (formats && formats.length) ? formats : [Html5QrcodeSupportedFormats.QR_CODE],
+      };
+      // Use native BarcodeDetector when supported (improves linear barcode detection)
+      options.experimentalFeatures = { useBarCodeDetectorIfSupported: true };
+
       await scanner.start(
         cameraConfig,
-        { fps: 12, qrbox: { width: 300, height: 300 }, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+        options,
         (decoded: string) => {
           if (!startedRef.current) return; // spurious callback after stop
           // Stop scanning immediately to avoid duplicate scans
@@ -120,6 +147,8 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
     // Ensure the div has a stable id and create scanner once
     if (!initializedRef.current) {
       divRef.current.id = regionId;
+      // Ensure empty container (avoid duplicate DOM from prior mounts)
+      try { divRef.current.innerHTML = ''; } catch (_) {}
       const html5Qrcode = new Html5Qrcode(regionId);
       scannerRef.current = html5Qrcode;
       initializedRef.current = true;
@@ -157,18 +186,48 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Adjust qrbox size on resize (debounced) for better multi-device experience
+  useEffect(() => {
+    let resizeTimeout: any = null;
+    const onResize = () => {
+      if (!startedRef.current) return; // only restart if active
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(async () => {
+        await stopScanner();
+        if (divRef.current) divRef.current.innerHTML = '';
+        scannerRef.current = new Html5Qrcode(regionId);
+        await startScanner(selectedCameraId || undefined);
+      }, 250);
+    };
+    if (typeof window !== 'undefined') window.addEventListener('resize', onResize);
+    return () => {
+      if (typeof window !== 'undefined') window.removeEventListener('resize', onResize);
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCameraId]);
+
   return (
     <Card className="p-4 glass-card glow-border space-y-4">
       <h3 className="text-lg font-semibold">Scan Mode</h3>
       <p className="text-xs text-muted-foreground">Align the item's barcode/QR inside the square.</p>
-  <div ref={divRef} className="relative rounded overflow-hidden bg-black/40 aspect-square" />
+  <div ref={divRef} className="relative mx-auto rounded overflow-hidden bg-black/10 aspect-square w-full max-w-[460px]" />
       <div className="text-xs text-muted-foreground min-h-[1rem]">
         {status === 'starting' && 'Starting camera…'}
         {status === 'scanning' && 'Scanning – hold steady'}
         {status === 'stopped' && 'Scanner stopped'}
         {status === 'error' && !error && 'Scanner error'}
       </div>
-      {error && <div className="text-destructive text-sm">{error}</div>}
+      {error && (
+        <div className="text-destructive text-sm space-y-1">
+          <div>{error}</div>
+          {typeof window !== 'undefined' && !window.isSecureContext && typeof location !== 'undefined' && location.hostname !== 'localhost' && (
+            <div>
+              Camera access may be blocked on non-HTTPS pages. Please use https or localhost.
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex gap-2">
         <Button
           className="flex-1"
@@ -200,6 +259,18 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
             }}
           >
             Rescan
+          </Button>
+        )}
+        {!active && (status === 'idle' || status === 'error') && (
+          <Button
+            className="flex-1"
+            variant="secondary"
+            onClick={async () => {
+              setError(null);
+              await startScanner(selectedCameraId || undefined);
+            }}
+          >
+            Start Camera
           </Button>
         )}
       </div>
