@@ -10,7 +10,7 @@ import PreOrderList from "@/components/PreOrderList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon, BarChart3 } from "lucide-react";
+import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon, BarChart3, Bell, QrCode } from "lucide-react";
 import Link from "next/link";
 
 interface CartItem {
@@ -31,6 +31,7 @@ export default function StudentDashboard() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // Simple toast helper available to handlers below
   const quickToast = (message: string, warn = false) => {
@@ -83,6 +84,7 @@ export default function StudentDashboard() {
     setUser(parsedUser);
     fetchMenuItems();
     fetchUserBalance(parsedUser.id);
+  fetchUnread(parsedUser.id);
 
     // Set up real-time subscription for menu items
     const channel = supabase
@@ -104,6 +106,18 @@ export default function StudentDashboard() {
       supabase.removeChannel(channel);
     };
   }, [router]);
+
+  // Fetch unread notifications count
+  const fetchUnread = async (userId: string) => {
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+      setUnreadCount(count || 0);
+    } catch {}
+  };
 
   // Fetch menu items from database
   const fetchMenuItems = async () => {
@@ -248,6 +262,23 @@ export default function StudentDashboard() {
                 <Button variant="outline" className="glow-border">
                   <BarChart3 className="mr-2 h-4 w-4" />
                   Report
+                </Button>
+              </Link>
+              <Link href="/student/qr">
+                <Button variant="outline" className="glow-border">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  My QR
+                </Button>
+              </Link>
+              <Link href="/student/notifications">
+                <Button variant="outline" className="glow-border relative">
+                  <Bell className="mr-2 h-4 w-4" />
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] rounded-full px-1">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
               <Link href="/student/account">

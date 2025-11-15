@@ -220,6 +220,21 @@ export default function WalletPage() {
         },
       ]);
 
+      // Create notification for recipient
+      try {
+        await supabase.from('notifications').insert([
+          {
+            user_id: recipient.id,
+            role: 'student',
+            type: 'money_received',
+            title: 'Money received',
+            message: `${user.name} sent you Rp ${amount.toLocaleString('id-ID')}`,
+            link: '/wallet',
+            meta: { from: user.id, amount }
+          }
+        ]);
+      } catch {}
+
       // Update local state
       const updatedUser = { ...user, wallet_balance: senderNewBalance };
       setUser(updatedUser);
@@ -266,9 +281,22 @@ export default function WalletPage() {
         return;
       }
 
-      // In a real app, this would create a notification/request
-      // For now, we'll just show an alert
-      alert(`Request sent to ${requestedUser.name} for Rp ${amount.toLocaleString('id-ID')}!\n\nNote: This is a demo. In production, the recipient would receive a notification to approve/reject.`);
+      // Create a notification for the requested user
+      try {
+        await supabase.from('notifications').insert([
+          {
+            user_id: requestedUser.id,
+            role: 'student',
+            type: 'money_request',
+            title: 'Money request',
+            message: `${user?.name || 'A student'} requested Rp ${amount.toLocaleString('id-ID')} from you`,
+            link: '/wallet',
+            meta: { from: user?.id, amount }
+          }
+        ]);
+      } catch {}
+
+      alert(`Request sent to ${requestedUser.name} for Rp ${amount.toLocaleString('id-ID')}!`);
       setRequestEmail("");
       setRequestAmount("");
     } catch (error) {

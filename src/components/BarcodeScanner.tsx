@@ -18,6 +18,7 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
   const [status, setStatus] = useState<'idle' | 'starting' | 'scanning' | 'stopped' | 'error'>('idle');
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }> | null>(null);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+  const transitioningRef = useRef<boolean>(false);
 
   // Stable, unique id for the scan region (avoid duplicates in StrictMode)
   const reactId = useId();
@@ -28,6 +29,8 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
     const scanner = scannerRef.current;
     if (!scanner) return;
     if (!startedRef.current) return; // nothing to stop
+    if (transitioningRef.current) return; // avoid overlapping transitions
+    transitioningRef.current = true;
     try {
       await scanner.stop();
     } catch (_) {
@@ -38,15 +41,18 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
       // Attempt to clear DOM elements to prevent duplicated video/canvas on next start
       try { await scanner.clear(); } catch (_) {}
       setStatus('stopped');
+      transitioningRef.current = false;
     }
   };
 
-  const startScanner = async (cameraId?: string) => {
+  const startScanner = async (cameraId?: string, retry = 0) => {
     const scanner = scannerRef.current;
     if (!scanner) return;
     if (startedRef.current) return; // already running
+    if (transitioningRef.current) return; // avoid overlapping transitions
     setError(null);
     setStatus('starting');
+    transitioningRef.current = true;
     try {
       const cameraConfig: any = cameraId ? cameraId : { facingMode: 'environment' };
       await scanner.start(
@@ -72,6 +78,16 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
       if (/NotAllowedError|denied/i.test(raw)) friendly = 'Camera permission denied. Please allow access and try again.';
       if (/NotFoundError|no camera/i.test(raw)) friendly = 'No camera found. Plug in a camera or switch device.';
       if (/NotReadableError|track.*ended/i.test(raw)) friendly = 'Camera is busy or in use by another app. Close other apps and retry.';
+      // Handle html5-qrcode internal state transition races gracefully
+      if (/Cannot transition to a new state, already under transition/i.test(raw) && retry < 2) {
+        // Small backoff then retry once or twice
+        setTimeout(() => {
+          // Clear transitioning flag before retrying
+          transitioningRef.current = false;
+          startScanner(cameraId, retry + 1);
+        }, 150);
+        return;
+      }
       setError(friendly);
       startedRef.current = false;
       setActive(false);
@@ -85,6 +101,8 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
             setCameras(list);
             const first = list[0].id;
             setSelectedCameraId(first);
+            // clear transitioning flag before new attempt
+            transitioningRef.current = false;
             await startScanner(first);
             return;
           }
@@ -93,6 +111,8 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
         }
       }
     }
+      // Only clear transitioning flag if we’re not in the special retry path above
+      transitioningRef.current = false;
   };
 
   useEffect(() => {

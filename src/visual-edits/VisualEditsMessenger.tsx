@@ -404,8 +404,13 @@ export default function HoverReceiver() {
   const [focusBox, setFocusBox] = useState<Box>(null);
   const [focusedElementId, setFocusedElementId] = useState<string | null>(null);
   const [isVisualEditMode, setIsVisualEditMode] = useState(() => {
-    // Initialize from localStorage if available
+    // Initialize from localStorage only when inside an iframe.
+    // This prevents visual edit mode from hijacking clicks in normal browsing.
     if (typeof window !== "undefined") {
+      const inIframe = window.self !== window.top;
+      if (!inIframe) {
+        return false;
+      }
       const stored = localStorage.getItem(VISUAL_EDIT_MODE_KEY);
       return stored === "true";
     }
@@ -462,7 +467,17 @@ export default function HoverReceiver() {
 
   // On mount, notify parent if visual edit mode was restored from localStorage
   useEffect(() => {
-    if (isVisualEditMode) {
+    // Safety: if not in an iframe, force-disable any persisted visual edit mode
+    if (typeof window !== "undefined" && window.self === window.top) {
+      const stored = localStorage.getItem(VISUAL_EDIT_MODE_KEY);
+      if (stored === "true") {
+        localStorage.removeItem(VISUAL_EDIT_MODE_KEY);
+        localStorage.removeItem(FOCUSED_ELEMENT_KEY);
+        setIsVisualEditMode(false);
+      }
+    }
+
+    if (isVisualEditMode && typeof window !== "undefined" && window.self !== window.top) {
       // Send acknowledgement to parent that visual edit mode is active
       // This will sync the parent's state with our restored state
       window.parent.postMessage(

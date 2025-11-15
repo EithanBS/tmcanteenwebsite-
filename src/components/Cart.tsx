@@ -121,12 +121,19 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+      // Pre-fetch current stock and owner for involved items
+      const ids = items.map((i) => i.id);
+      const { data: beforeRows } = await supabase
+        .from('menu_items')
+        .select('id, stock, owner_id, name')
+        .in('id', ids);
+      const beforeMap = new Map((beforeRows || []).map((r: any) => [r.id, r]));
+
       // Atomic stock decrement via RPC (will throw if insufficient)
   const rpcPayload = items.map(i => ({ id: i.id, quantity: i.quantity }));
   const { error: rpcError } = await supabase.rpc('decrement_stock', { p_items: rpcPayload });
       if (rpcError) {
         // Fallback: do client-verified updates so local testing still works
-        const ids = items.map((i) => i.id);
         const { data: stocks, error: stocksError } = await supabase
           .from("menu_items")
           .select("id, stock")
@@ -203,7 +210,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
 
       if (orderError) throw orderError;
 
-      // Deduct from wallet balance
+  // Deduct from wallet balance
       const newBalance = userBalance - totalPrice;
       const { error: balanceError } = await supabase
         .from("users")
@@ -227,6 +234,47 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
       // Update user in localStorage
       user.wallet_balance = newBalance;
       localStorage.setItem("user", JSON.stringify(user));
+
+      // Post-fetch to detect stock threshold crossings and notify owners
+      try {
+        const { data: afterRows } = await supabase
+          .from('menu_items')
+          .select('id, stock, owner_id, name')
+          .in('id', ids);
+        const notifications: any[] = [];
+        for (const row of afterRows || []) {
+          const before = beforeMap.get(row.id);
+          if (!before) continue;
+          const prev = before.stock ?? 0;
+          const curr = row.stock ?? 0;
+          // Out of stock crossing
+          if (prev > 0 && curr === 0) {
+            notifications.push({
+              user_id: row.owner_id,
+              role: 'owner',
+              type: 'stock_out',
+              title: 'Item out of stock',
+              message: `${row.name} has run out of stock`,
+              link: '/owner',
+              meta: { item_id: row.id, prev, curr }
+            });
+          } else if (prev > 5 && curr <= 5 && curr > 0) {
+            // Low stock threshold 5
+            notifications.push({
+              user_id: row.owner_id,
+              role: 'owner',
+              type: 'stock_low',
+              title: 'Low stock warning',
+              message: `${row.name} is low on stock (${curr} left)`,
+              link: '/owner',
+              meta: { item_id: row.id, prev, curr }
+            });
+          }
+        }
+        if (notifications.length) {
+          await supabase.from('notifications').insert(notifications);
+        }
+      } catch {}
 
       if (isPreOrder && scheduled_for) {
         alert("Pre-order placed! 🎉");

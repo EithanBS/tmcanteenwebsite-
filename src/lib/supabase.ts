@@ -51,3 +51,16 @@ export type Transaction = {
   type: 'topup' | 'transfer' | 'order';
   timestamp: string;
 };
+
+export type Notification = {
+  id: string;
+  user_id: string;
+  role?: 'student' | 'owner' | 'admin' | null;
+  type: 'money_received' | 'money_request' | 'stock_low' | 'stock_out' | 'order_update' | string;
+  title: string;
+  message?: string | null;
+  link?: string | null;
+  meta?: any;
+  read: boolean;
+  created_at: string;
+};

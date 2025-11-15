@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3 } from "lucide-react";
+import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3, Bell, QrCode } from "lucide-react";
 import Image from "next/image";
 
 export default function OwnerDashboard() {
@@ -22,6 +22,7 @@ export default function OwnerDashboard() {
   const [editStock, setEditStock] = useState("");
   const [editBarcodeValue, setEditBarcodeValue] = useState("");
   const [editBarcodeImage, setEditBarcodeImage] = useState("");
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // Add new menu item state
   const [newName, setNewName] = useState("");
@@ -44,9 +45,10 @@ export default function OwnerDashboard() {
       return;
     }
 
-    setUser(parsedUser);
+  setUser(parsedUser);
   fetchOrders();
   fetchMenuItems(parsedUser.id);
+  fetchUnread(parsedUser.id);
 
     // Set up real-time subscriptions
     const ordersChannel = supabase
@@ -84,6 +86,17 @@ export default function OwnerDashboard() {
       supabase.removeChannel(menuChannel);
     };
   }, [router]);
+
+  const fetchUnread = async (userId: string) => {
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+      setUnreadCount(count || 0);
+    } catch {}
+  };
 
   // Fetch all orders (we'll filter client-side to only show orders fully owned by this owner)
   const fetchOrders = async () => {
@@ -301,6 +314,16 @@ export default function OwnerDashboard() {
               <p className="text-muted-foreground mt-1">Welcome back, {user.name}!</p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={()=>router.push('/owner/scan-student')} className="glow-border">
+                <QrCode className="mr-2 h-4 w-4" /> Scan Student QR
+              </Button>
+              <Button variant="outline" onClick={()=>router.push('/owner/notifications')} className="glow-border relative">
+                <Bell className="mr-2 h-4 w-4" />
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] rounded-full px-1">{unreadCount}</span>
+                )}
+              </Button>
               <Button variant="outline" onClick={()=>router.push('/owner/report')} className="glow-border">
                 <BarChart3 className="mr-2 h-4 w-4" /> Report
               </Button>
