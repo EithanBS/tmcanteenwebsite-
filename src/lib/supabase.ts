@@ -16,6 +16,7 @@ export type User = {
   role: 'student' | 'admin' | 'owner';
   wallet_balance: number;
   pin: string;
+  monthly_budget?: number | null;
   created_at?: string;
 };
 
@@ -37,8 +38,9 @@ export type Order = {
   user_id: string;
   items: { id: string; name: string; price: number; quantity: number }[];
   total_price: number;
-  status: 'processing' | 'ready';
+  status: 'processing' | 'ready' | 'preorder';
   created_at: string;
+  scheduled_for?: string | null; // ISO date (YYYY-MM-DD) when preorder should be prepared
 };
 
 export type Transaction = {

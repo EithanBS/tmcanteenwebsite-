@@ -6,10 +6,11 @@ import { supabase, MenuItem, User } from "@/lib/supabase";
 import MenuItemCard from "@/components/MenuItemCard";
 import Cart from "@/components/Cart";
 import OrderHistory from "@/components/OrderHistory";
+import PreOrderList from "@/components/PreOrderList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon } from "lucide-react";
+import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 interface CartItem {
@@ -243,6 +244,12 @@ export default function StudentDashboard() {
               <p className="text-muted-foreground mt-1">Welcome back, {user.name}!</p>
             </div>
             <div className="flex items-center gap-4">
+              <Link href="/student/report">
+                <Button variant="outline" className="glow-border">
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Report
+                </Button>
+              </Link>
               <Link href="/student/account">
                 <Button variant="outline" className="glow-border">
                   <UserIcon className="mr-2 h-4 w-4" />
@@ -272,7 +279,7 @@ export default function StudentDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
         <Tabs defaultValue="menu" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto glass-card">
+          <TabsList className="grid w-full grid-cols-4 max-w-xl mx-auto glass-card">
             <TabsTrigger value="menu">
               <ShoppingBag className="mr-2 h-4 w-4" />
               Menu
@@ -284,6 +291,10 @@ export default function StudentDashboard() {
             <TabsTrigger value="orders">
               <History className="mr-2 h-4 w-4" />
               Orders
+            </TabsTrigger>
+            <TabsTrigger value="preorders">
+              <History className="mr-2 h-4 w-4" />
+              Pre-Orders
             </TabsTrigger>
           </TabsList>
 
@@ -351,6 +362,11 @@ export default function StudentDashboard() {
           {/* Orders Tab */}
           <TabsContent value="orders">
             <OrderHistory userId={user.id} />
+          </TabsContent>
+
+          {/* Pre-Orders Tab */}
+          <TabsContent value="preorders">
+            <PreOrderList userId={user.id} />
           </TabsContent>
         </Tabs>
       </div>

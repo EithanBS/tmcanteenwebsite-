@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase, Order } from "@/lib/supabase";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, CalendarDays } from "lucide-react";
 
 interface OrderHistoryProps {
   userId: string;
@@ -89,15 +89,21 @@ export default function OrderHistory({ userId }: OrderHistoryProps) {
                 Rp {order.total_price.toLocaleString('id-ID')}
               </p>
             </div>
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                order.status === "processing"
-                  ? "bg-yellow-500/20 status-processing"
-                  : "bg-green-500/20 status-ready"
-              }`}
-            >
-              {order.status === "processing" ? "🟡 Processing" : "🟢 Ready"}
-            </span>
+            {order.status === "preorder" ? (
+              <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-500/20 status-preorder">
+                🔵 Pre-order
+              </span>
+            ) : (
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  order.status === "processing"
+                    ? "bg-yellow-500/20 status-processing"
+                    : "bg-green-500/20 status-ready"
+                }`}
+              >
+                {order.status === "processing" ? "🟡 Processing" : "🟢 Ready"}
+              </span>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -113,6 +119,12 @@ export default function OrderHistory({ userId }: OrderHistoryProps) {
               </div>
             ))}
           </div>
+          {order.status === 'preorder' && order.scheduled_for && (
+            <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              <span>Scheduled for: {new Date(order.scheduled_for + 'T00:00:00').toLocaleDateString()}</span>
+            </div>
+          )}
         </Card>
       ))}
     </div>

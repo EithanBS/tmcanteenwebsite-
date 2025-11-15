@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LogOut, Users, Package, History, Trash2, Plus, Edit2, Check } from "lucide-react";
+import { LogOut, Users, Package, History, Trash2, Plus, Edit2, Check, BarChart3 } from "lucide-react";
 import Image from "next/image";
 
 export default function AdminDashboard() {
@@ -401,10 +401,15 @@ export default function AdminDashboard() {
               <h1 className="text-3xl font-bold glow-text">🛡️ Admin Dashboard</h1>
               <p className="text-muted-foreground mt-1">System Management Portal</p>
             </div>
-            <Button variant="ghost" onClick={handleLogout}>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={()=>router.push('/admin/report')} className="glow-border">
+                <BarChart3 className="mr-2 h-4 w-4" /> Report
+              </Button>
+              <Button variant="ghost" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
-            </Button>
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

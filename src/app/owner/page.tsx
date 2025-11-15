@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Order, MenuItem, User } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, ShoppingBag, Package, Edit2, Check } from "lucide-react";
+import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3 } from "lucide-react";
 import Image from "next/image";
 
 export default function OwnerDashboard() {
@@ -45,8 +45,8 @@ export default function OwnerDashboard() {
     }
 
     setUser(parsedUser);
-    fetchOrders();
-    fetchMenuItems(parsedUser.id);
+  fetchOrders();
+  fetchMenuItems(parsedUser.id);
 
     // Set up real-time subscriptions
     const ordersChannel = supabase
@@ -85,7 +85,7 @@ export default function OwnerDashboard() {
     };
   }, [router]);
 
-  // Fetch all orders
+  // Fetch all orders (we'll filter client-side to only show orders fully owned by this owner)
   const fetchOrders = async () => {
     try {
       const { data, error } = await supabase
@@ -136,9 +136,19 @@ export default function OwnerDashboard() {
     }
   };
 
-  // Update order status
+  const ownerItemIds = useMemo(() => new Set(menuItems.map((mi) => mi.id)), [menuItems]);
+
+  // Update order status (guard: only allow if ALL items in the order belong to this owner)
   const handleUpdateOrderStatus = async (orderId: string, newStatus: "processing" | "ready") => {
     try {
+      // Fetch order to verify ownership of all items
+      const { data: ord, error: oerr } = await supabase.from("orders").select("*").eq("id", orderId).single();
+      if (oerr) throw oerr as any;
+      const allMine = (ord?.items || []).every((it: any) => ownerItemIds.has(it.id));
+      if (!allMine) {
+        alert("You can only update status for orders that contain only your items.");
+        return;
+      }
       const { error } = await supabase
         .from("orders")
         .update({ status: newStatus })
@@ -260,6 +270,11 @@ export default function OwnerDashboard() {
     router.push("/login");
   };
 
+  // Only show orders where all items belong to this owner (compute before any early return to keep hook order stable)
+  const fullyOwnedOrders = useMemo(() => {
+    return orders.filter((o: any) => Array.isArray(o.items) && o.items.length > 0 && o.items.every((it: any) => ownerItemIds.has(it.id)));
+  }, [orders, ownerItemIds]);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -268,8 +283,8 @@ export default function OwnerDashboard() {
     );
   }
 
-  const processingOrders = orders.filter((o) => o.status === "processing");
-  const readyOrders = orders.filter((o) => o.status === "ready");
+  const processingOrders = fullyOwnedOrders.filter((o) => o.status === "processing");
+  const readyOrders = fullyOwnedOrders.filter((o) => o.status === "ready");
 
   // Group menu items by category
   const foodItems = menuItems.filter((item) => item.category === "food");
@@ -285,10 +300,15 @@ export default function OwnerDashboard() {
               <h1 className="text-3xl font-bold glow-text">🍳 Canteen Owner Dashboard</h1>
               <p className="text-muted-foreground mt-1">Welcome back, {user.name}!</p>
             </div>
-            <Button variant="ghost" onClick={handleLogout}>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={()=>router.push('/owner/report')} className="glow-border">
+                <BarChart3 className="mr-2 h-4 w-4" /> Report
+              </Button>
+              <Button variant="ghost" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
-            </Button>
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
