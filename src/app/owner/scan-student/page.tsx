@@ -48,7 +48,9 @@ export default function OwnerScanStudentPage() {
       setScanning(false);
       // Accept either raw id or JSON payload { t:'student', id, n }
       let id = code.trim();
-      try { const parsed = JSON.parse(code); if (parsed && parsed.id) id = parsed.id; } catch {}
+      try { const parsed = JSON.parse(code); if (parsed && parsed.id) id = String(parsed.id); } catch {}
+      const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+      if (!isUUID(id)) { setError('Invalid student QR'); setScanning(true); return; }
       const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
       if (error || !data) { setError('Student not found'); setScanning(true); return; }
       if ((data as any).role !== 'student') { setError('QR does not belong to a student'); setScanning(true); return; }

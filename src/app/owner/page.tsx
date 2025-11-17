@@ -496,7 +496,7 @@ export default function OwnerDashboard() {
                             </div>
 
                             {/* Item Details */}
-                            <div className="flex-1 space-y-4">
+                            <div className="flex-1 min-w-0 space-y-4">
                               <div>
                                 <h3 className="text-xl font-bold">{item.name}</h3>
                                 <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">
@@ -603,11 +603,11 @@ export default function OwnerDashboard() {
                                     <div className="grid grid-cols-2 gap-4">
                                       <div>
                                         <Label htmlFor={`barcode-${item.id}`}>Barcode Value</Label>
-                                        <Input id={`barcode-${item.id}`} value={editBarcodeValue} onChange={(e) => setEditBarcodeValue(e.target.value)} />
+                                        <Input id={`barcode-${item.id}`} value={(item as any).barcode_value || ''} readOnly />
                                       </div>
                                       <div>
                                         <Label htmlFor={`barcode-img-${item.id}`}>Barcode Image URL</Label>
-                                        <Input id={`barcode-img-${item.id}`} value={editBarcodeImage} onChange={(e) => setEditBarcodeImage(e.target.value)} />
+                                        <Input id={`barcode-img-${item.id}`} value={(item as any).barcode_image_url || ''} readOnly />
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -616,11 +616,16 @@ export default function OwnerDashboard() {
                                         variant="outline"
                                         onClick={async () => {
                                           const { default: QRCode } = await import('qrcode');
-                                          const value = editBarcodeValue || item.id?.toString();
+                                          const value = (item as any).barcode_value || item.id?.toString();
+                                          if (!value) { alert('Missing item id'); return; }
                                           try {
                                             const dataUrl = await QRCode.toDataURL(value, { width: 256, margin: 1 });
-                                            setEditBarcodeImage(dataUrl);
-                                            if (!editBarcodeValue) setEditBarcodeValue(value);
+                                            const { error } = await supabase
+                                              .from('menu_items')
+                                              .update({ barcode_value: value, barcode_image_url: dataUrl })
+                                              .eq('id', item.id);
+                                            if (error) throw error as any;
+                                            if (user) fetchMenuItems(user.id);
                                           } catch (e) {
                                             alert('Failed to generate QR');
                                           }
@@ -628,24 +633,25 @@ export default function OwnerDashboard() {
                                       >
                                         Generate QR
                                       </Button>
-                                      {editBarcodeImage && (
-                                        <img src={editBarcodeImage} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
+                                      {(item as any).barcode_image_url && (
+                                        <img src={(item as any).barcode_image_url} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
                                       )}
                                     </div>
                                   </div>
 
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 flex-col sm:flex-row sm:flex-wrap">
                                     <Button
                                     onClick={() => startEditing(item)}
                                     variant="outline"
-                                      className="w-full glow-border"
+                                      className="w-full sm:flex-1 sm:w-auto glow-border"
                                   >
                                     <Edit2 className="mr-2 h-4 w-4" />
-                                    Edit Price & Stock
+                                    <span className="md:inline hidden">Edit Price & Stock</span>
+                                    <span className="md:hidden inline">Edit</span>
                                     </Button>
                                     <Button
                                       variant="destructive"
-                                      className="w-full"
+                                      className="w-full sm:flex-1 sm:w-auto"
                                       onClick={() => deleteMenuItem(item.id)}
                                     >
                                       Delete
@@ -681,7 +687,7 @@ export default function OwnerDashboard() {
                             </div>
 
                             {/* Item Details */}
-                            <div className="flex-1 space-y-4">
+                            <div className="flex-1 min-w-0 space-y-4">
                               <div>
                                 <h3 className="text-xl font-bold">{item.name}</h3>
                                 <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400">
@@ -714,6 +720,38 @@ export default function OwnerDashboard() {
                                         className="bg-secondary/50 border-primary/30"
                                       />
                                     </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label htmlFor={`barcode-${item.id}`}>Barcode Value</Label>
+                                      <Input id={`barcode-${item.id}`} value={editBarcodeValue} onChange={(e) => setEditBarcodeValue(e.target.value)} />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor={`barcode-img-${item.id}`}>Barcode Image URL</Label>
+                                      <Input id={`barcode-img-${item.id}`} value={editBarcodeImage} onChange={(e) => setEditBarcodeImage(e.target.value)} />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        const { default: QRCode } = await import('qrcode');
+                                        const value = editBarcodeValue || item.id?.toString();
+                                        try {
+                                          const dataUrl = await QRCode.toDataURL(value, { width: 256, margin: 1 });
+                                          setEditBarcodeImage(dataUrl);
+                                          if (!editBarcodeValue) setEditBarcodeValue(value);
+                                        } catch (e) {
+                                          alert('Failed to generate QR');
+                                        }
+                                      }}
+                                    >
+                                      Generate QR
+                                    </Button>
+                                    {editBarcodeImage && (
+                                      <img src={editBarcodeImage} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
+                                    )}
                                   </div>
 
                                   <div className="flex gap-2">
@@ -750,19 +788,59 @@ export default function OwnerDashboard() {
                                       </p>
                                     </div>
                                   </div>
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label htmlFor={`barcode-${item.id}`}>Barcode Value</Label>
+                                        <Input id={`barcode-${item.id}`} value={(item as any).barcode_value || ''} readOnly />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`barcode-img-${item.id}`}>Barcode Image URL</Label>
+                                        <Input id={`barcode-img-${item.id}`} value={(item as any).barcode_image_url || ''} readOnly />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const { default: QRCode } = await import('qrcode');
+                                          const value = (item as any).barcode_value || item.id?.toString();
+                                          if (!value) { alert('Missing item id'); return; }
+                                          try {
+                                            const dataUrl = await QRCode.toDataURL(value, { width: 256, margin: 1 });
+                                            const { error } = await supabase
+                                              .from('menu_items')
+                                              .update({ barcode_value: value, barcode_image_url: dataUrl })
+                                              .eq('id', item.id);
+                                            if (error) throw error as any;
+                                            if (user) fetchMenuItems(user.id);
+                                          } catch (e) {
+                                            alert('Failed to generate QR');
+                                          }
+                                        }}
+                                      >
+                                        Generate QR
+                                      </Button>
+                                      {(item as any).barcode_image_url && (
+                                        <img src={(item as any).barcode_image_url} alt="Barcode" className="h-12 w-12 object-contain rounded bg-secondary/40" />
+                                      )}
+                                    </div>
+                                  </div>
 
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 flex-col sm:flex-row sm:flex-wrap">
                                     <Button
                                     onClick={() => startEditing(item)}
                                     variant="outline"
-                                      className="w-full glow-border"
+                                      className="w-full sm:flex-1 sm:w-auto glow-border"
                                   >
                                     <Edit2 className="mr-2 h-4 w-4" />
-                                    Edit Price & Stock
+                                    <span className="md:inline hidden">Edit Price & Stock</span>
+                                    <span className="md:hidden inline">Edit</span>
                                     </Button>
                                     <Button
                                       variant="destructive"
-                                      className="w-full"
+                                      className="w-full sm:flex-1 sm:w-auto"
                                       onClick={() => deleteMenuItem(item.id)}
                                     >
                                       Delete

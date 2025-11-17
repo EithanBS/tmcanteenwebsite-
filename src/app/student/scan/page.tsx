@@ -32,18 +32,21 @@ export default function ScanToPayPage() {
       setError(null);
       const raw = scannedCode.trim();
       let lookedUp: MenuItem | null = null;
+      const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
 
       // Try: QR payload as JSON { type: 'item', id }
       try {
         const parsed = JSON.parse(raw);
         if (parsed && (parsed.id || parsed.item_id || parsed.menu_item_id)) {
           const id = String(parsed.id || parsed.item_id || parsed.menu_item_id);
-          const { data, error } = await supabase
-            .from('menu_items')
-            .select('*')
-            .eq('id', id)
-            .single();
-          if (!error && data) lookedUp = data as any;
+          if (isUUID(id)) {
+            const { data, error } = await supabase
+              .from('menu_items')
+              .select('*')
+              .eq('id', id)
+              .single();
+            if (!error && data) lookedUp = data as any;
+          }
         }
       } catch (_) {
         // not JSON, continue
@@ -60,7 +63,7 @@ export default function ScanToPayPage() {
       }
 
       // Try: id equals raw (if QR encodes item id directly)
-      if (!lookedUp) {
+      if (!lookedUp && isUUID(raw)) {
         const { data, error } = await supabase
           .from('menu_items')
           .select('*')
