@@ -45,9 +45,20 @@ export default function OwnerNotificationsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const markAllRead = async () => { if (!user) return; await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false); };
-  const clearAll = async () => { if (!user) return; if (!confirm('Clear all notifications?')) return; await supabase.from('notifications').delete().eq('user_id', user.id); };
-  const markRead = async (id: string) => { await supabase.from('notifications').update({ read: true }).eq('id', id); };
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })) as any);
+  };
+  const clearAll = async () => {
+    if (!user) return; if (!confirm('Clear all notifications?')) return;
+    await supabase.from('notifications').delete().eq('user_id', user.id);
+    setNotifications([] as any);
+  };
+  const markRead = async (id: string) => {
+    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    setNotifications(prev => prev.map(n => n.id === id ? ({ ...n, read: true }) as any : n) as any);
+  };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
 

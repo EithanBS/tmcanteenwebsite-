@@ -46,12 +46,22 @@ export default function StudentNotificationsPage() {
   }, [user]);
 
   const markAllRead = async () => {
-    if (!user) return; await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    if (!user) return;
+    await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    // Optimistic UI update
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })) as any);
   };
   const clearAll = async () => {
-    if (!user) return; if (!confirm('Clear all notifications?')) return; await supabase.from('notifications').delete().eq('user_id', user.id);
+    if (!user) return; if (!confirm('Clear all notifications?')) return;
+    await supabase.from('notifications').delete().eq('user_id', user.id);
+    // Optimistic UI update
+    setNotifications([] as any);
   };
-  const markRead = async (id: string) => { await supabase.from('notifications').update({ read: true }).eq('id', id); };
+  const markRead = async (id: string) => {
+    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    // Optimistic UI update
+    setNotifications(prev => prev.map(n => n.id === id ? ({ ...n, read: true }) as any : n) as any);
+  };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
 

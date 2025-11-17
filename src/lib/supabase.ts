@@ -38,9 +38,12 @@ export type Order = {
   user_id: string;
   items: { id: string; name: string; price: number; quantity: number }[];
   total_price: number;
-  status: 'processing' | 'ready' | 'preorder';
+  status: 'processing' | 'ready' | 'preorder' | 'completed';
   created_at: string;
   scheduled_for?: string | null; // ISO date (YYYY-MM-DD) when preorder should be prepared
+  student_picked_up?: boolean;
+  owner_picked_up?: boolean;
+  completed_at?: string | null;
 };
 
 export type Transaction = {

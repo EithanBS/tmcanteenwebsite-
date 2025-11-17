@@ -81,9 +81,16 @@ export default function OwnerDashboard() {
       )
       .subscribe();
 
+    // Realtime for notifications badge
+    const notifChan = supabase
+      .channel('owner_unread_watch')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${parsedUser.id}` }, () => fetchUnread(parsedUser.id))
+      .subscribe();
+
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(menuChannel);
+      supabase.removeChannel(notifChan);
     };
   }, [router]);
 
@@ -174,6 +181,65 @@ export default function OwnerDashboard() {
     } catch (error) {
       console.error("Error updating order:", error);
       alert("Failed to update order status");
+    }
+  };
+
+  // Owner confirms pickup; if student already confirmed, complete order. Otherwise, notify student.
+  const handleOwnerPickedUp = async (order: any) => {
+    try {
+      // Verify this order is fully owned by this owner
+      const allMine = (order?.items || []).every((it: any) => ownerItemIds.has(it.id));
+      if (!allMine) {
+        alert("You can only confirm pickup for orders that contain only your items.");
+        return;
+      }
+
+      const { data: updated, error } = await supabase
+        .from('orders')
+        .update({ owner_picked_up: true })
+        .eq('id', order.id)
+        .select()
+        .single();
+      if (error) throw error as any;
+
+      if (updated.student_picked_up) {
+        const { error: e2 } = await supabase
+          .from('orders')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', order.id);
+        if (e2) {
+          console.warn('Status update to completed failed, proceeding with flags only:', e2);
+        }
+        // Optimistically reflect completion
+        setOrders(prev => prev.map(o => (o.id === order.id ? ({ ...o, owner_picked_up: true, status: 'completed' } as any) : o)) as any);
+      } else {
+        // Notify student to confirm pickup
+        await supabase.from('notifications').insert([
+          {
+            user_id: order.user_id,
+            role: 'student',
+            type: 'pickup_prompt',
+            title: 'Pickup confirmation needed',
+            message: 'Canteen confirmed pickup. Please tap Picked Up to complete the order.',
+            link: '/student',
+            meta: { order_id: order.id }
+          }
+        ] as any);
+        setOrders(prev => prev.map(o => (o.id === order.id ? ({ ...o, owner_picked_up: true } as any) : o)) as any);
+      }
+
+      // Ensure latest data is fetched (covers realtime gaps)
+      fetchOrders();
+    } catch (e) {
+      console.error(e);
+      const msg = (e as any)?.message || String(e);
+      if (/column .* does not exist/i.test(msg)) {
+        alert('Failed to confirm pickup: missing columns. Please apply migration 0007_pickup_flags.sql to your database.');
+      } else if (/invalid input value for enum/i.test(msg)) {
+        alert('Failed to set status completed (enum). Flags were set; order will complete when both confirm.');
+      } else {
+        alert('Failed to confirm pickup: ' + msg);
+      }
     }
   };
 
@@ -297,7 +363,8 @@ export default function OwnerDashboard() {
   }
 
   const processingOrders = fullyOwnedOrders.filter((o) => o.status === "processing");
-  const readyOrders = fullyOwnedOrders.filter((o) => o.status === "ready");
+  const readyOrders = fullyOwnedOrders.filter((o: any) => o.status === "ready" && !(o.student_picked_up && o.owner_picked_up));
+  const completedOrders = fullyOwnedOrders.filter((o: any) => o.status === 'completed' || (o.student_picked_up && o.owner_picked_up));
 
   // Group menu items by category
   const foodItems = menuItems.filter((item) => item.category === "food");
@@ -438,6 +505,66 @@ export default function OwnerDashboard() {
                                 <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-500/20 status-ready">
                                   Ready for Pickup
                                 </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 mt-4">
+                              {order.items.map((item: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex justify-between p-2 rounded bg-secondary/20 text-sm"
+                                >
+                                  <span>
+                                    {item.name} × {item.quantity}
+                                  </span>
+                                  <span>Rp {(item.price * item.quantity).toLocaleString('id-ID')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex flex-col justify-center gap-2 md:w-56">
+                            {order.owner_picked_up ? (
+                              <div className="text-sm text-muted-foreground">Waiting for student to confirm pickup…</div>
+                            ) : (
+                              <Button
+                                onClick={() => handleOwnerPickedUp(order)}
+                                className="w-full glow-border hover:glow-pulse"
+                              >
+                                <Check className="mr-2 h-4 w-4" />
+                                Picked Up
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Completed Orders */}
+              <div>
+                <h2 className="text-xl font-bold mb-4 glow-text">✅ Completed Orders</h2>
+                {completedOrders.length === 0 ? (
+                  <Card className="p-12 glass-card glow-border text-center">
+                    <p className="text-muted-foreground">No completed orders</p>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {completedOrders.map((order: any) => (
+                      <Card key={order.id} className="p-6 glass-card glow-border opacity-75">
+                        <div className="flex flex-col md:flex-row justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <p className="font-semibold text-lg">{order.user_name}</p>
+                                <p className="text-sm text-muted-foreground">{order.user_email}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-2xl font-bold glow-text">
+                                  Rp {order.total_price.toLocaleString('id-ID')}
+                                </p>
+                                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-emerald-500/20">Completed</span>
                               </div>
                             </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, MenuItem, User } from "@/lib/supabase";
 import MenuItemCard from "@/components/MenuItemCard";
@@ -32,6 +32,13 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  // Swipeable tabs state
+  const tabOrder = ["menu", "cart", "orders", "preorders"] as const;
+  type TabKey = typeof tabOrder[number];
+  const [activeTab, setActiveTab] = useState<TabKey>("menu");
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchDX = useRef<number>(0);
 
   // Simple toast helper available to handlers below
   const quickToast = (message: string, warn = false) => {
@@ -102,8 +109,15 @@ export default function StudentDashboard() {
       )
       .subscribe();
 
+    // Realtime for notifications badge
+    const notifChan = supabase
+      .channel('student_unread_watch')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${parsedUser.id}` }, () => fetchUnread(parsedUser.id))
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(notifChan);
     };
   }, [router]);
 
@@ -308,8 +322,40 @@ export default function StudentDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto">
-        <Tabs defaultValue="menu" className="space-y-6">
+      <div
+        className="max-w-7xl mx-auto"
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          touchStartX.current = t.clientX;
+          touchStartY.current = t.clientY;
+          touchDX.current = 0;
+        }}
+        onTouchMove={(e) => {
+          if (touchStartX.current == null || touchStartY.current == null) return;
+          const t = e.touches[0];
+          const dx = t.clientX - touchStartX.current;
+          const dy = t.clientY - touchStartY.current;
+          // Only consider mostly-horizontal moves
+          if (Math.abs(dx) > Math.abs(dy)) {
+            touchDX.current = dx;
+          }
+        }}
+        onTouchEnd={() => {
+          const threshold = 60; // px swipe threshold
+          const dx = touchDX.current;
+          touchStartX.current = null;
+          touchStartY.current = null;
+          touchDX.current = 0;
+          if (Math.abs(dx) < threshold) return;
+          const idx = tabOrder.indexOf(activeTab);
+          if (dx < 0 && idx < tabOrder.length - 1) {
+            setActiveTab(tabOrder[idx + 1]);
+          } else if (dx > 0 && idx > 0) {
+            setActiveTab(tabOrder[idx - 1]);
+          }
+        }}
+      >
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 max-w-xl mx-auto glass-card">
             <TabsTrigger value="menu">
               <ShoppingBag className="mr-2 h-4 w-4" />
