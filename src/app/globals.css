@@ -208,6 +208,7 @@
   .app-content {
     position: relative;
     z-index: 1;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* Liquid glass effect for cards */
@@ -260,4 +261,13 @@
 /* Hide Next.js error overlay portal */
 nextjs-portal {
   display: none !important;
+}
+
+/* Hide horizontal scrollbar for swipeable rows */
+.scrollbar-none {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
 }

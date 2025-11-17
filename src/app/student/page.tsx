@@ -257,21 +257,21 @@ export default function StudentDashboard() {
               <h1 className="text-3xl font-bold glow-text">🍱 Student Portal</h1>
               <p className="text-muted-foreground mt-1">Welcome back, {user.name}!</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4 overflow-x-auto md:overflow-visible w-full md:w-auto -mx-2 px-2 py-1 whitespace-nowrap scrollbar-none snap-x md:snap-none">
               <Link href="/student/report">
-                <Button variant="outline" className="glow-border">
+                <Button variant="outline" className="glow-border shrink-0 snap-start">
                   <BarChart3 className="mr-2 h-4 w-4" />
                   Report
                 </Button>
               </Link>
               <Link href="/student/qr">
-                <Button variant="outline" className="glow-border">
+                <Button variant="outline" className="glow-border shrink-0 snap-start">
                   <QrCode className="mr-2 h-4 w-4" />
                   My QR
                 </Button>
               </Link>
               <Link href="/student/notifications">
-                <Button variant="outline" className="glow-border relative">
+                <Button variant="outline" className="glow-border relative shrink-0 snap-start">
                   <Bell className="mr-2 h-4 w-4" />
                   Notifications
                   {unreadCount > 0 && (
@@ -282,23 +282,23 @@ export default function StudentDashboard() {
                 </Button>
               </Link>
               <Link href="/student/account">
-                <Button variant="outline" className="glow-border">
+                <Button variant="outline" className="glow-border shrink-0 snap-start">
                   <UserIcon className="mr-2 h-4 w-4" />
                   Account
                 </Button>
               </Link>
               <Link href="/wallet">
-                <Button variant="outline" className="glow-border">
+                <Button variant="outline" className="glow-border shrink-0 snap-start">
                   <Wallet className="mr-2 h-4 w-4" />
                   Rp {user.wallet_balance.toLocaleString('id-ID')}
                 </Button>
               </Link>
               <Link href="/student/scan">
-                <Button className="glow-border">
+                <Button className="glow-border shrink-0 snap-start">
                   Scan to Pay
                 </Button>
               </Link>
-              <Button variant="ghost" onClick={handleLogout}>
+              <Button variant="ghost" className="shrink-0 snap-start" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
