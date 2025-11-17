@@ -168,8 +168,8 @@ export default function AdminMonthlyReportPage() {
           <Card className="p-12 glass-card glow-border text-center"><p className="text-muted-foreground">No orders for this period</p></Card>
         ) : (
           <div className="space-y-8">
-            {/* KPI Grid */}
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            {/* KPI Grid (extended) */}
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
               <Card className="p-4 glass-card glow-border">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground"><Package className="h-4 w-4"/>Total Orders</div>
                 <p className="text-2xl font-bold glow-text mt-1">{stats.totalOrders}</p>
@@ -185,6 +185,14 @@ export default function AdminMonthlyReportPage() {
               <Card className="p-4 glass-card glow-border">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground"><CalendarDays className="h-4 w-4"/>Pre-Orders</div>
                 <p className="text-2xl font-bold glow-text mt-1">{stats.preorderCount}</p>
+              </Card>
+              <Card className="p-4 glass-card glow-border">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock className="h-4 w-4"/>Processing / Ready</div>
+                <p className="text-sm font-medium mt-1"><span className="glow-text">{stats.processingCount}</span> / <span className="glow-text">{stats.readyCount}</span></p>
+              </Card>
+              <Card className="p-4 glass-card glow-border">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground"><BarChart3 className="h-4 w-4"/>Distinct Items</div>
+                <p className="text-2xl font-bold glow-text mt-1">{stats.distinctItems.size}</p>
               </Card>
             </div>
 

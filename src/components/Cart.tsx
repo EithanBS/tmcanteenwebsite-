@@ -210,6 +210,25 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
 
       if (orderError) throw orderError;
 
+      // Notify impacted owners about the new order (pre-order or normal)
+      try {
+        const impactedOwnerIds = Array.from(new Set(items.map(i => (beforeMap.get(i.id) as any)?.owner_id).filter(Boolean)));
+        if (impactedOwnerIds.length && order) {
+          const noteRows = impactedOwnerIds.map(oid => ({
+            user_id: oid,
+            role: 'owner',
+            type: 'order_update',
+            title: isPreOrder ? 'New pre-order received' : 'New order received',
+            message: `Order total Rp ${totalPrice.toLocaleString('id-ID')} (${items.length} item${items.length>1?'s':''})`,
+            link: '/owner',
+            meta: { order_id: (order as any).id, preorder: isPreOrder, scheduled_for, items: items.map(it => ({ id: it.id, name: it.name, quantity: it.quantity })) }
+          }));
+          await supabase.from('notifications').insert(noteRows as any);
+        }
+      } catch (notifyErr) {
+        console.warn('Failed to insert owner order notifications', notifyErr);
+      }
+
   // Deduct from wallet balance
       const newBalance = userBalance - totalPrice;
       const { error: balanceError } = await supabase
@@ -235,7 +254,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
       user.wallet_balance = newBalance;
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Post-fetch to detect stock threshold crossings and notify owners
+  // Post-fetch to detect stock threshold crossings and notify owners (low/out of stock)
       try {
         const { data: afterRows } = await supabase
           .from('menu_items')

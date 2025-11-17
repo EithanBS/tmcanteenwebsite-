@@ -122,6 +122,25 @@ export default function ScanToPayPage() {
         .single();
       if (orderError) throw orderError;
 
+      // Notify owner of new order
+      try {
+        if (item.owner_id && order) {
+          await supabase.from('notifications').insert([
+            {
+              user_id: item.owner_id,
+              role: 'owner',
+              type: 'order_update',
+              title: 'New order received',
+              message: `${item.name} × ${quantity} (Total Rp ${total.toLocaleString('id-ID')})`,
+              link: '/owner',
+              meta: { order_id: (order as any).id, items: orderItems }
+            } as any
+          ]);
+        }
+      } catch (notifyErr) {
+        console.warn('Failed to create owner order notification', notifyErr);
+      }
+
       // Update wallet
       const newBalance = user.wallet_balance - total;
       const { error: balanceError } = await supabase
