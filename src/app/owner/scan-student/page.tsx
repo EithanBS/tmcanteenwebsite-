@@ -215,7 +215,17 @@ export default function OwnerScanStudentPage() {
                 {cart.length === 0 && (
                   <div>
                     <Label htmlFor="amount">Amount (Rp)</Label>
-                    <Input id="amount" type="number" value={amount} onChange={(e)=>setAmount(e.target.value)} />
+                    <Input
+                      id="amount"
+                      type="text"
+                      inputMode="numeric"
+                      value={amount}
+                      onChange={(e)=>{
+                        let v = e.target.value.replace(/[^0-9]/g, '');
+                        if (v.startsWith('00')) v = v.replace(/^0+/, '0');
+                        setAmount(v);
+                      }}
+                    />
                   </div>
                 )}
                 <div className="text-sm font-semibold">

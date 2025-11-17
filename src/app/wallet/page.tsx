@@ -371,10 +371,19 @@ export default function WalletPage() {
                     <Label htmlFor="topup-amount">Amount</Label>
                     <Input
                       id="topup-amount"
-                      type="number"
+                      type="text"
                       placeholder="0.00"
                       value={topupAmount}
-                      onChange={(e) => setTopupAmount(e.target.value)}
+                      inputMode="numeric"
+                      min={0}
+                      step={1 as any}
+                      onChange={(e) => {
+                        // Allow digits only
+                        let v = e.target.value.replace(/[^0-9]/g, "");
+                        // Normalize leading zeros
+                        if (v.startsWith("00")) v = v.replace(/^0+/, "0");
+                        setTopupAmount(v);
+                      }}
                       className="bg-secondary/50 border-primary/30"
                     />
                   </div>
@@ -462,10 +471,17 @@ export default function WalletPage() {
                   <Label htmlFor="send-amount">Amount</Label>
                   <Input
                     id="send-amount"
-                    type="number"
+                    type="text"
                     placeholder="0.00"
                     value={sendAmount}
-                    onChange={(e) => setSendAmount(e.target.value)}
+                    inputMode="numeric"
+                    min={0}
+                    step={1 as any}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^0-9]/g, "");
+                      if (v.startsWith("00")) v = v.replace(/^0+/, "0");
+                      setSendAmount(v);
+                    }}
                     className="bg-secondary/50 border-primary/30"
                   />
                 </div>
@@ -477,7 +493,7 @@ export default function WalletPage() {
                     type="password"
                     placeholder="••••••"
                     value={sendPin}
-                    onChange={(e) => setSendPin(e.target.value.slice(0, 6))}
+                    onChange={(e) => setSendPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                     maxLength={6}
                     className="bg-secondary/50 border-primary/30"
                   />
@@ -522,10 +538,17 @@ export default function WalletPage() {
                   <Label htmlFor="request-amount">Amount</Label>
                   <Input
                     id="request-amount"
-                    type="number"
+                    type="text"
                     placeholder="0.00"
                     value={requestAmount}
-                    onChange={(e) => setRequestAmount(e.target.value)}
+                    inputMode="numeric"
+                    min={0}
+                    step={1 as any}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^0-9]/g, "");
+                      if (v.startsWith("00")) v = v.replace(/^0+/, "0");
+                      setRequestAmount(v);
+                    }}
                     className="bg-secondary/50 border-primary/30"
                   />
                 </div>

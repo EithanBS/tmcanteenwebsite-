@@ -20,11 +20,33 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Helper: validate full name (letters, spaces, apostrophes, hyphens only)
+  const validateFullName = (raw: string): string | null => {
+    const cleaned = raw.trim();
+    if (cleaned.length < 2) return "Full name must be at least 2 characters";
+    if (cleaned.length > 50) return "Full name must be at most 50 characters";
+    // Allow Unicode letters, spaces, apostrophes (straight and curly) and hyphens
+    // Note: \p{L} requires the 'u' flag
+    const re = /^(?=.*\p{L})[\p{L}][\p{L} '’-]*[\p{L}]$/u;
+    if (!re.test(cleaned)) {
+      return "Full name can only contain letters, spaces, apostrophes, and hyphens";
+    }
+    return null;
+  };
+
   // Handle user registration
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    // Validate full name
+    const nameErr = validateFullName(name);
+    if (nameErr) {
+      setError(nameErr);
+      setLoading(false);
+      return;
+    }
 
     // Validate PIN is 6 digits
     if (pin.length !== 6 || !/^\d+$/.test(pin)) {
@@ -52,7 +74,7 @@ export default function RegisterPage() {
         .from("users")
         .insert([
           {
-            name,
+            name: name.trim(),
             email,
             password,
             pin,
@@ -99,6 +121,8 @@ export default function RegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              maxLength={50}
+              inputMode="text"
               className="bg-secondary/50 border-primary/30"
             />
           </div>
