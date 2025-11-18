@@ -199,49 +199,70 @@ export default function WalletPage() {
         return;
       }
 
-      // Compute new balances
-      const senderNewBalance = user.wallet_balance - amount;
-      const recipientCurrentBalance = Number(recipient.wallet_balance ?? 0);
-      const recipientNewBalance = recipientCurrentBalance + amount;
+      // Prefer server-side atomic transfer if available
+      const tryRpc = async () => {
+        const { error: rpcErr } = await supabase.rpc('transfer_funds', {
+          sender_id: user.id,
+          recipient_id: recipient.id,
+          amount: amount,
+        } as any);
+        if (rpcErr) throw rpcErr;
+      };
 
-      // Step 1: deduct sender
-      {
-        const { error: sErr } = await supabase
-          .from("users")
-          .update({ wallet_balance: senderNewBalance })
-          .eq("id", user.id);
-        if (sErr) throw sErr;
+      const tryClientTwoStep = async () => {
+        // Compute new balances
+        const senderNewBalance = user.wallet_balance - amount;
+        const recipientCurrentBalance = Number(recipient.wallet_balance ?? 0);
+        const recipientNewBalance = recipientCurrentBalance + amount;
+
+        // Step 1: deduct sender
+        {
+          const { error: sErr } = await supabase
+            .from("users")
+            .update({ wallet_balance: senderNewBalance })
+            .eq("id", user.id);
+          if (sErr) throw sErr;
+        }
+
+        // Step 2: credit recipient; if it fails, try to revert sender
+        try {
+          const { error: rErr } = await supabase
+            .from("users")
+            .update({ wallet_balance: recipientNewBalance })
+            .eq("id", recipient.id);
+          if (rErr) throw rErr;
+        } catch (e) {
+          // revert sender deduction best-effort
+          await supabase
+            .from("users")
+            .update({ wallet_balance: user.wallet_balance })
+            .eq("id", user.id);
+          throw e;
+        }
+
+        // Step 3: transaction record (best-effort)
+        try {
+          await supabase.from("transactions").insert([
+            {
+              sender_id: user.id,
+              receiver_id: recipient.id,
+              amount: amount,
+              type: "transfer",
+            },
+          ]);
+        } catch {}
+      };
+
+      let usedRpc = true;
+      try {
+        await tryRpc();
+      } catch (e: any) {
+        // If function not found (42883) or perms issue, fallback to client two-step
+        usedRpc = false;
+        await tryClientTwoStep();
       }
 
-      // Step 2: credit recipient; if it fails, try to revert sender
-      try {
-        const { error: rErr } = await supabase
-          .from("users")
-          .update({ wallet_balance: recipientNewBalance })
-          .eq("id", recipient.id);
-        if (rErr) throw rErr;
-      } catch (e) {
-        // revert sender deduction best-effort
-        await supabase
-          .from("users")
-          .update({ wallet_balance: user.wallet_balance })
-          .eq("id", user.id);
-        throw e;
-      }
-
-      // Step 3: transaction record (best-effort)
-      try {
-        await supabase.from("transactions").insert([
-          {
-            sender_id: user.id,
-            receiver_id: recipient.id,
-            amount: amount,
-            type: "transfer",
-          },
-        ]);
-      } catch {}
-
-      // Step 4: notify recipient (best-effort)
+      // Notify recipient (best-effort)
       try {
         await supabase.from('notifications').insert([
           {
@@ -257,7 +278,7 @@ export default function WalletPage() {
       } catch {}
 
       // Update local state
-      const updatedUser = { ...user, wallet_balance: senderNewBalance };
+      const updatedUser = { ...user, wallet_balance: user.wallet_balance - amount };
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
@@ -268,7 +289,7 @@ export default function WalletPage() {
       fetchTransactions(user.id);
     } catch (error) {
       console.error("Send money error:", error);
-      alert("Failed to send money. The recipient was not credited and your balance was not changed.");
+      alert("Failed to send money. The recipient was not credited and your balance remains unchanged.");
     } finally {
       setLoading(false);
     }

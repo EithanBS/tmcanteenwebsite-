@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3, Bell, QrCode, XCircle } from "lucide-react";
+import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3, Bell, QrCode, XCircle, CalendarDays } from "lucide-react";
 import Image from "next/image";
 
 export default function OwnerDashboard() {
@@ -25,6 +25,7 @@ export default function OwnerDashboard() {
   const [editBarcodeValue, setEditBarcodeValue] = useState("");
   const [editBarcodeImage, setEditBarcodeImage] = useState("");
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [canceledIds, setCanceledIds] = useState<string[]>([]);
 
   // Add new menu item state
   const [newName, setNewName] = useState("");
@@ -274,7 +275,10 @@ export default function OwnerDashboard() {
       } catch {}
 
       alert('Order canceled and refund issued.');
-      fetchOrders();
+  // Optimistically mark locally as canceled to hide from lists immediately
+  setCanceledIds((prev) => (prev.includes(order.id) ? prev : [...prev, order.id]));
+  setOrders(prev => prev.map(o => (o.id === order.id ? ({ ...o, status: 'canceled' } as any) : o)) as any);
+  fetchOrders();
     } catch (e) {
       console.error('Cancel order failed', e);
       alert('Failed to cancel order.');
@@ -464,6 +468,9 @@ export default function OwnerDashboard() {
   const processingOrders = fullyOwnedOrders.filter((o) => o.status === "processing");
   const readyOrders = fullyOwnedOrders.filter((o: any) => o.status === "ready" && !(o.student_picked_up && o.owner_picked_up));
   const completedOrders = fullyOwnedOrders.filter((o: any) => o.status === 'completed' || (o.student_picked_up && o.owner_picked_up));
+  const notCanceled = (o: any) => o.status !== 'canceled' && !canceledIds.includes(o.id);
+  const processingOrdersSafe = processingOrders.filter(notCanceled);
+  const readyOrdersSafe = readyOrders.filter(notCanceled);
 
   // Group menu items by category
   const foodItems = menuItems.filter((item) => item.category === "food");
@@ -505,7 +512,7 @@ export default function OwnerDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto glass-card">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto glass-card">
             <TabsTrigger value="orders">
               <ShoppingBag className="mr-2 h-4 w-4" />
               Orders ({processingOrders.length})
@@ -513,6 +520,10 @@ export default function OwnerDashboard() {
             <TabsTrigger value="menu">
               <Package className="mr-2 h-4 w-4" />
               My Menu ({menuItems.length})
+            </TabsTrigger>
+            <TabsTrigger value="preorders">
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Pre-Orders
             </TabsTrigger>
           </TabsList>
 
@@ -522,13 +533,13 @@ export default function OwnerDashboard() {
               {/* Processing Orders */}
               <div>
                 <h2 className="text-xl font-bold mb-4 glow-text">🟡 Processing Orders</h2>
-                {processingOrders.length === 0 ? (
+                {processingOrdersSafe.length === 0 ? (
                   <Card className="p-12 glass-card glow-border text-center">
                     <p className="text-muted-foreground">No processing orders</p>
                   </Card>
                 ) : (
                   <div className="grid gap-4">
-                    {processingOrders.map((order: any) => (
+                    {processingOrdersSafe.map((order: any) => (
                       <Card key={order.id} className="p-6 glass-card glow-border">
                         <div className="flex flex-col md:flex-row justify-between gap-4">
                           <div className="flex-1">
@@ -590,13 +601,13 @@ export default function OwnerDashboard() {
               {/* Ready Orders */}
               <div>
                 <h2 className="text-xl font-bold mb-4 status-ready">🟢 Ready Orders</h2>
-                {readyOrders.length === 0 ? (
+                {readyOrdersSafe.length === 0 ? (
                   <Card className="p-12 glass-card glow-border text-center">
                     <p className="text-muted-foreground">No ready orders</p>
                   </Card>
                 ) : (
                   <div className="grid gap-4">
-                    {readyOrders.map((order: any) => (
+                    {readyOrdersSafe.map((order: any) => (
                       <Card key={order.id} className="p-6 glass-card glow-border opacity-75">
                         <div className="flex flex-col md:flex-row justify-between gap-4">
                           <div className="flex-1">
@@ -1137,8 +1148,108 @@ export default function OwnerDashboard() {
               </div>
             )}
           </TabsContent>
+
+          {/* Pre-Orders Tab */}
+          <TabsContent value="preorders">
+            <OwnerPreOrders ownerId={user.id} />
+          </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+// Pre-Orders tab content for Owner
+function OwnerPreOrders({ ownerId }: { ownerId: string }) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPreorders = async () => {
+    try {
+      // fetch orders that are status=preorder and contain only this owner's items
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('status', 'preorder')
+        .order('scheduled_for', { ascending: true, nullsFirst: false });
+      if (error) throw error as any;
+      const base = (data || [])
+        .filter((o: any) => Array.isArray(o.items) && o.items.length > 0);
+      // Attach user name/email similar to main orders fetch
+      const withUser = await Promise.all(base.map(async (order: any) => {
+        try {
+          const { data: u } = await supabase
+            .from('users')
+            .select('name, email')
+            .eq('id', order.user_id)
+            .single();
+          return { ...order, user_name: u?.name || 'Unknown', user_email: u?.email || '' };
+        } catch {
+          return { ...order };
+        }
+      }));
+      // Filter to only orders fully owned by this owner if items include owner_id
+      const mine = withUser.filter((o: any) => o.items.every((it: any) => (it.owner_id ? it.owner_id === ownerId : true)));
+      setOrders(mine);
+    } catch (e) {
+      console.error('fetchPreorders owner', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPreorders();
+    const ch = supabase
+      .channel('owner_preorders_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPreorders)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [ownerId]);
+
+  if (loading) {
+    return (
+      <Card className="p-12 glass-card glow-border text-center">
+        <p className="text-muted-foreground">Loading pre-orders...</p>
+      </Card>
+    );
+  }
+
+  if (!orders.length) {
+    return (
+      <Card className="p-12 glass-card glow-border text-center">
+        <p className="text-muted-foreground">No pre-orders found</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {orders.map((order) => (
+        <Card key={order.id} className="p-6 glass-card glow-border">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">Who:</span> {order.user_name || order.user_id}
+            </div>
+            <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-500/20">Pre-Order</span>
+          </div>
+          <div className="text-sm text-muted-foreground mb-2">
+            <span className="font-medium">When:</span> {order.scheduled_for ? new Date(order.scheduled_for + 'T00:00:00').toLocaleDateString() : '-'}
+          </div>
+          <div className="space-y-2">
+            {order.items.map((it: any, idx: number) => (
+              <div key={idx} className="flex justify-between p-2 rounded bg-secondary/20 text-sm">
+                <span>{it.name} × {it.quantity}</span>
+                <span>Rp {(it.price * it.quantity).toLocaleString('id-ID')}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-between text-sm">
+            <span className="text-muted-foreground">Total</span>
+            <span className="glow-text font-semibold">Rp {order.total_price.toLocaleString('id-ID')}</span>
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }
