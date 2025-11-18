@@ -10,10 +10,12 @@ import Image from "next/image";
 interface MenuItemCardProps {
   item: MenuItem;
   onAddToCart: (item: MenuItem, note?: string) => void;
+  // Mark as high-priority (above the fold) to improve LCP
+  priority?: boolean;
 }
 
 // Component to display a single menu item with image, name, price, stock
-export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
+export default function MenuItemCard({ item, onAddToCart, priority = false }: MenuItemCardProps) {
   const isOutOfStock = item.stock === 0;
   const normalizedCategory = (item.category as any)?.toString().trim().toLowerCase();
   const isFood = normalizedCategory === "food";
@@ -30,7 +32,11 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
           alt={item.name}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
-          unoptimized
+          // Use Next optimization for the first above-the-fold image to improve LCP
+          // For the rest, keep unoptimized to avoid heavy transforms on many items
+          unoptimized={!priority}
+          priority={priority}
+          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
         />
         {isOutOfStock && (
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80 backdrop-blur-[2px] flex items-center justify-center">

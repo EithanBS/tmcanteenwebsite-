@@ -13,7 +13,7 @@ import PreOrderList from "@/components/PreOrderList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon, BarChart3, Bell, QrCode } from "lucide-react";
+import { Wallet, ShoppingBag, History, LogOut, UtensilsCrossed, Coffee, User as UserIcon, BarChart3, Bell, QrCode, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 interface CartItem {
@@ -42,6 +42,11 @@ export default function StudentDashboard() {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const touchDX = useRef<number>(0);
+  const pointerTracking = useRef<boolean>(false);
+  const pointerIdRef = useRef<number | null>(null);
+  // Track swipes that start on the TabsList so header buttons also swipe
+  const swipingOnTabs = useRef<boolean>(false);
+  const swipeConsumed = useRef<boolean>(false);
 
   // Simple toast helper available to handlers below
   const quickToast = (message: string, warn = false) => {
@@ -328,8 +333,52 @@ export default function StudentDashboard() {
 
       {/* Main Content */}
       <div
-        className="max-w-7xl mx-auto"
+        className="max-w-7xl mx-auto touch-pan-y select-none"
+        // Pointer events (robust on modern mobile browsers)
+        onPointerDown={(e) => {
+          if (e.pointerType !== 'touch') return;
+          pointerTracking.current = true;
+          try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); pointerIdRef.current = e.pointerId; } catch {}
+          touchStartX.current = e.clientX;
+          touchStartY.current = e.clientY;
+          touchDX.current = 0;
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'touch') return;
+          if (!pointerTracking.current || touchStartX.current == null || touchStartY.current == null) return;
+          const dx = e.clientX - touchStartX.current;
+          const dy = e.clientY - touchStartY.current;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            touchDX.current = dx;
+          }
+        }}
+        onPointerUp={(e) => {
+          if (!pointerTracking.current) return;
+          const threshold = 25;
+          const dx = touchDX.current;
+          pointerTracking.current = false;
+          try { if (pointerIdRef.current != null) { (e.currentTarget as any).releasePointerCapture?.(pointerIdRef.current); } } catch {}
+          pointerIdRef.current = null;
+          touchStartX.current = null;
+          touchStartY.current = null;
+          touchDX.current = 0;
+          if (Math.abs(dx) < threshold) return;
+          const idx = tabOrder.indexOf(activeTab);
+          if (dx < 0 && idx < tabOrder.length - 1) {
+            setActiveTab(tabOrder[idx + 1]);
+          } else if (dx > 0 && idx > 0) {
+            setActiveTab(tabOrder[idx - 1]);
+          }
+        }}
+        onPointerCancel={() => {
+          pointerTracking.current = false;
+          pointerIdRef.current = null;
+          touchStartX.current = null;
+          touchStartY.current = null;
+          touchDX.current = 0;
+        }}
         onTouchStart={(e) => {
+          if (pointerTracking.current) return; // avoid double-handling
           // Track initial touch point
           const t = e.touches[0];
           touchStartX.current = t.clientX;
@@ -337,6 +386,7 @@ export default function StudentDashboard() {
           touchDX.current = 0;
         }}
         onTouchMove={(e) => {
+          if (pointerTracking.current) return;
           if (touchStartX.current == null || touchStartY.current == null) return;
           const t = e.touches[0];
           const dx = t.clientX - touchStartX.current;
@@ -347,8 +397,9 @@ export default function StudentDashboard() {
           }
         }}
         onTouchEnd={() => {
+          if (pointerTracking.current) return;
           // Switch tabs on sufficient horizontal swipe
-          const threshold = 60; // px swipe threshold
+          const threshold = 35; // px swipe threshold (more forgiving)
           const dx = touchDX.current;
           touchStartX.current = null;
           touchStartY.current = null;
@@ -361,26 +412,176 @@ export default function StudentDashboard() {
             setActiveTab(tabOrder[idx - 1]);
           }
         }}
+        onTouchCancel={() => {
+          // Reset swipe tracking if gesture is canceled
+          touchStartX.current = null;
+          touchStartY.current = null;
+          touchDX.current = 0;
+        }}
       >
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-xl mx-auto glass-card">
-            <TabsTrigger value="menu">
+          {/* Responsive tabs list: 2 columns on very small screens, 4 columns from sm+ to avoid overlap */}
+          <TabsList
+            className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 max-w-xl mx-auto glass-card select-none touch-pan-y"
+            // Capture-phase handlers ensure we see gestures even when starting on a button
+            onPointerDownCapture={(e) => {
+              if (e.pointerType !== 'touch') return;
+              swipingOnTabs.current = true;
+              pointerTracking.current = true;
+              try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); pointerIdRef.current = e.pointerId; } catch {}
+              touchStartX.current = e.clientX;
+              touchStartY.current = e.clientY;
+              touchDX.current = 0;
+              swipeConsumed.current = false;
+            }}
+            onPointerMoveCapture={(e) => {
+              if (e.pointerType !== 'touch') return;
+              if (!swipingOnTabs.current || !pointerTracking.current || touchStartX.current == null || touchStartY.current == null) return;
+              const dx = e.clientX - touchStartX.current;
+              const dy = e.clientY - touchStartY.current;
+              if (Math.abs(dx) > Math.abs(dy)) {
+                touchDX.current = dx;
+                if (Math.abs(dx) > 20) {
+                  // Mark as swipe to suppress accidental button clicks
+                  swipeConsumed.current = true;
+                }
+              }
+            }}
+            onPointerUpCapture={(e) => {
+              if (!swipingOnTabs.current) return;
+              const threshold = 25;
+              const dx = touchDX.current;
+              swipingOnTabs.current = false;
+              pointerTracking.current = false;
+              try { if (pointerIdRef.current != null) { (e.currentTarget as any).releasePointerCapture?.(pointerIdRef.current); } } catch {}
+              pointerIdRef.current = null;
+              touchStartX.current = null;
+              touchStartY.current = null;
+              touchDX.current = 0;
+              if (Math.abs(dx) >= threshold) {
+                const idx = tabOrder.indexOf(activeTab);
+                if (dx < 0 && idx < tabOrder.length - 1) {
+                  setActiveTab(tabOrder[idx + 1]);
+                } else if (dx > 0 && idx > 0) {
+                  setActiveTab(tabOrder[idx - 1]);
+                }
+                // Prevent bubbling to outer handlers and suppress click
+                e.stopPropagation();
+              }
+              // reset swipeConsumed shortly after to allow clicks again
+              setTimeout(() => { swipeConsumed.current = false; }, 0);
+            }}
+            onPointerCancelCapture={() => {
+              swipingOnTabs.current = false;
+              pointerTracking.current = false;
+              pointerIdRef.current = null;
+              touchStartX.current = null;
+              touchStartY.current = null;
+              touchDX.current = 0;
+              swipeConsumed.current = false;
+            }}
+            onTouchStartCapture={(e) => {
+              if (pointerTracking.current) return; // pointer events path already active
+              swipingOnTabs.current = true;
+              const t = e.touches[0];
+              touchStartX.current = t.clientX;
+              touchStartY.current = t.clientY;
+              touchDX.current = 0;
+              swipeConsumed.current = false;
+            }}
+            onTouchMoveCapture={(e) => {
+              if (!swipingOnTabs.current) return;
+              if (touchStartX.current == null || touchStartY.current == null) return;
+              const t = e.touches[0];
+              const dx = t.clientX - touchStartX.current;
+              const dy = t.clientY - touchStartY.current;
+              if (Math.abs(dx) > Math.abs(dy)) {
+                touchDX.current = dx;
+                if (Math.abs(dx) > 20) {
+                  swipeConsumed.current = true;
+                }
+              }
+            }}
+            onTouchEndCapture={(e) => {
+              if (!swipingOnTabs.current) return;
+              const threshold = 35;
+              const dx = touchDX.current;
+              swipingOnTabs.current = false;
+              touchStartX.current = null;
+              touchStartY.current = null;
+              touchDX.current = 0;
+              if (Math.abs(dx) >= threshold) {
+                const idx = tabOrder.indexOf(activeTab);
+                if (dx < 0 && idx < tabOrder.length - 1) {
+                  setActiveTab(tabOrder[idx + 1]);
+                } else if (dx > 0 && idx > 0) {
+                  setActiveTab(tabOrder[idx - 1]);
+                }
+                e.stopPropagation();
+              }
+              setTimeout(() => { swipeConsumed.current = false; }, 0);
+            }}
+            onTouchCancelCapture={() => {
+              swipingOnTabs.current = false;
+              touchStartX.current = null;
+              touchStartY.current = null;
+              touchDX.current = 0;
+              swipeConsumed.current = false;
+            }}
+            onClickCapture={(e) => {
+              // If a swipe occurred, suppress accidental click on a tab
+              if (swipeConsumed.current) {
+                e.preventDefault();
+                e.stopPropagation();
+                swipeConsumed.current = false;
+              }
+            }}
+          >
+            <TabsTrigger value="menu" className="whitespace-nowrap">
               <ShoppingBag className="mr-2 h-4 w-4" />
               Menu
             </TabsTrigger>
-            <TabsTrigger value="cart">
+            <TabsTrigger value="cart" className="whitespace-nowrap">
               <ShoppingBag className="mr-2 h-4 w-4" />
               Cart ({cart.length})
             </TabsTrigger>
-            <TabsTrigger value="orders">
+            <TabsTrigger value="orders" className="whitespace-nowrap">
               <History className="mr-2 h-4 w-4" />
               Orders
             </TabsTrigger>
-            <TabsTrigger value="preorders">
+            <TabsTrigger value="preorders" className="whitespace-nowrap">
               <History className="mr-2 h-4 w-4" />
-              Pre-Orders
+              Pre‑Orders
             </TabsTrigger>
           </TabsList>
+
+          {/* Mobile quick nav arrows (fallback if gestures feel tricky on some devices) */}
+          <div className="flex items-center justify-between md:hidden -mt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Previous tab"
+              onClick={() => {
+                const idx = tabOrder.indexOf(activeTab);
+                if (idx > 0) setActiveTab(tabOrder[idx - 1]);
+              }}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Next tab"
+              onClick={() => {
+                const idx = tabOrder.indexOf(activeTab);
+                if (idx < tabOrder.length - 1) setActiveTab(tabOrder[idx + 1]);
+              }}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
 
           {/* Menu Tab */}
           <TabsContent value="menu" className="space-y-6">
@@ -423,8 +624,14 @@ export default function StudentDashboard() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredMenuItems.map((item) => (
-                  <MenuItemCard key={item.id} item={item} onAddToCart={handleAddToCart} />
+                {filteredMenuItems.map((item, idx) => (
+                  <MenuItemCard
+                    key={item.id}
+                    item={item}
+                    onAddToCart={handleAddToCart}
+                    // Mark the very first image as priority to address LCP warning
+                    priority={idx === 0}
+                  />
                 ))}
               </div>
             )}
