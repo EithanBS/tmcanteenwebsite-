@@ -465,12 +465,27 @@ export default function OwnerDashboard() {
     );
   }
 
+  // Helper: treat an order as a pre-order if status is 'preorder' OR it has a scheduled date in the future (or today)
+  const isPreorder = (o: any) => {
+    if (o?.status === 'preorder') return true;
+    if (!o?.scheduled_for) return false;
+    try {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const sched = new Date(`${o.scheduled_for}T00:00:00`);
+      return sched.getTime() >= today.getTime();
+    } catch {
+      return false;
+    }
+  };
+
   const processingOrders = fullyOwnedOrders.filter((o) => o.status === "processing");
   const readyOrders = fullyOwnedOrders.filter((o: any) => o.status === "ready" && !(o.student_picked_up && o.owner_picked_up));
   const completedOrders = fullyOwnedOrders.filter((o: any) => o.status === 'completed' || (o.student_picked_up && o.owner_picked_up));
   const notCanceled = (o: any) => o.status !== 'canceled' && !canceledIds.includes(o.id);
-  const processingOrdersSafe = processingOrders.filter(notCanceled);
-  const readyOrdersSafe = readyOrders.filter(notCanceled);
+  // Exclude pre-orders from active lists
+  const processingOrdersSafe = processingOrders.filter((o) => notCanceled(o) && !isPreorder(o));
+  const readyOrdersSafe = readyOrders.filter((o) => notCanceled(o) && !isPreorder(o));
 
   // Group menu items by category
   const foodItems = menuItems.filter((item) => item.category === "food");
@@ -1174,7 +1189,20 @@ function OwnerPreOrders({ ownerId, ownerItemIds }: { ownerId: string; ownerItemI
         .order('scheduled_for', { ascending: true, nullsFirst: false });
       if (error) throw error as any;
       const base = (data || [])
-        .filter((o: any) => Array.isArray(o.items) && o.items.length > 0);
+        .filter((o: any) => Array.isArray(o.items) && o.items.length > 0)
+        .filter((o: any) => {
+          // Only include orders that are future-dated (or today) when using scheduled_for
+          if (o.status === 'preorder') return true;
+          if (!o.scheduled_for) return false;
+          try {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const sched = new Date(`${o.scheduled_for}T00:00:00`);
+            return sched.getTime() >= today.getTime();
+          } catch {
+            return false;
+          }
+        });
       // Attach user name/email similar to main orders fetch
       const withUser = await Promise.all(base.map(async (order: any) => {
         try {
