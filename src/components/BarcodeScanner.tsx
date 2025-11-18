@@ -1,4 +1,6 @@
 "use client";
+// Barcode/QR scanner component using html5-qrcode. Handles camera selection,
+// start/stop lifecycle, resize responsiveness, and surfaces friendly errors.
 import { useEffect, useRef, useState, useId } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
@@ -25,6 +27,7 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
   const regionId = `barcode-scan-region-${reactId.replace(/[:]/g, '-')}`;
   const initializedRef = useRef<boolean>(false);
 
+  // Stop the active scanner and clear DOM artifacts (idempotent)
   const stopScanner = async () => {
     const scanner = scannerRef.current;
     if (!scanner) return;
@@ -45,6 +48,8 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
     }
   };
 
+  // Start scanner with a specific camera or environment-facing default.
+  // Retries once on transient internal state transition issues.
   const startScanner = async (cameraId?: string, retry = 0) => {
     const scanner = scannerRef.current;
     if (!scanner) return;
@@ -54,7 +59,7 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
     setStatus('starting');
     transitioningRef.current = true;
     try {
-      const cameraConfig: any = cameraId ? cameraId : { facingMode: 'environment' };
+  const cameraConfig: any = cameraId ? cameraId : { facingMode: 'environment' };
       // Build a list of formats to support; prefer QR and include common barcodes when available
       const F: any = Html5QrcodeSupportedFormats as any;
       const candidateKeys = [
@@ -99,7 +104,7 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
       setActive(true);
       setStatus('scanning');
     } catch (e: any) {
-      // Camera start failed or permission denied
+  // Camera start failed or permission denied
       const raw = e?.message || String(e) || 'Camera start failed';
       let friendly = raw;
       if (/NotAllowedError|denied/i.test(raw)) friendly = 'Camera permission denied. Please allow access and try again.';
@@ -138,10 +143,11 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
         }
       }
     }
-      // Only clear transitioning flag if we’re not in the special retry path above
+    // Only clear transitioning flag if we’re not in the special retry path above
       transitioningRef.current = false;
   };
 
+  // Initialize scanner on mount and subscribe to cameras; cleanup on unmount
   useEffect(() => {
     if (!divRef.current) return;
     // Ensure the div has a stable id and create scanner once
@@ -233,6 +239,7 @@ export default function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps
           className="flex-1"
           variant="outline"
           onClick={async () => {
+            // Stop scanner and bubble cancellation to parent
             await stopScanner();
             onCancel();
           }}

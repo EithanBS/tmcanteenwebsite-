@@ -1,3 +1,5 @@
+// App root layout: sets global metadata/viewport, mounts error reporter and a parallax background,
+// and renders all routed pages via the children prop.
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import VisualEditsMount from "../visual-edits/VisualEditsMount";
@@ -25,9 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased app-content">
+        {/* Decorative parallax background layer */}
         <div className="app-parallax-bg" aria-hidden />
+        {/* Global client-side error reporter banner */}
         <ErrorReporter />
+        {/* Routed page content */}
         {children}
+        {/* Tiny script to expose scroll position as a CSS var for parallax effect */}
         <Script id="parallax-scroll" strategy="afterInteractive">
           {`
             (function(){
@@ -37,6 +43,7 @@ export default function RootLayout({
             })();
           `}
         </Script>
+        {/* Dev-only visual edits bridge (safe to keep mounted) */}
         <VisualEditsMount />
       </body>
     </html>

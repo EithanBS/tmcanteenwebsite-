@@ -1,4 +1,5 @@
 "use client";
+// Login page: verifies user credentials in Supabase 'users' and routes by role.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -37,7 +38,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Store user info in localStorage
+  // Store user info in localStorage
       localStorage.setItem("user", JSON.stringify(users));
 
       // Redirect based on role
@@ -57,8 +58,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/10">
-      <Card className="w-full max-w-md p-8 glass-card glow-border">
+    <div
+      className="relative min-h-screen flex items-center justify-center p-4"
+      style={{
+        backgroundImage: "url('/BG1(Blue).gif')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+  {/* subtle dark overlay for readability over the GIF */}
+      <div className="absolute inset-0 bg-black/30" />
+      <Card className="relative z-10 w-full max-w-md p-8 glass-card glow-border">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold glow-text mb-2">🍱 Canteen Portal</h1>
           <p className="text-muted-foreground">Sign in to your account</p>

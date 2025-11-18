@@ -1,4 +1,6 @@
 "use client";
+// Owner notifications: lists notifications, supports realtime refresh,
+// bulk mark-as-read and clear-all actions.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, Notification, User } from '@/lib/supabase';

@@ -1,4 +1,6 @@
 "use client";
+// Owner dashboard: manage own menu, track orders for items you own,
+// confirm pickups, and generate QR/barcodes for items.
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -50,7 +52,7 @@ export default function OwnerDashboard() {
   fetchMenuItems(parsedUser.id);
   fetchUnread(parsedUser.id);
 
-    // Set up real-time subscriptions
+  // Set up real-time subscriptions
     const ordersChannel = supabase
       .channel("orders_owner")
       .on(
@@ -94,6 +96,7 @@ export default function OwnerDashboard() {
     };
   }, [router]);
 
+  // Fetch unread notification count for badge
   const fetchUnread = async (userId: string) => {
     try {
       const { count } = await supabase

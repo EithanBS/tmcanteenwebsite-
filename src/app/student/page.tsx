@@ -1,4 +1,7 @@
 "use client";
+// Student dashboard: menu browsing, cart, orders, and pre-orders.
+// Persists cart, listens to realtime changes, shows unread notifications
+// and supports swipeable tabs on mobile.
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -93,7 +96,7 @@ export default function StudentDashboard() {
     fetchUserBalance(parsedUser.id);
   fetchUnread(parsedUser.id);
 
-    // Set up real-time subscription for menu items
+  // Set up real-time subscription for menu items
     const channel = supabase
       .channel("menu_changes")
       .on(
@@ -109,7 +112,7 @@ export default function StudentDashboard() {
       )
       .subscribe();
 
-    // Realtime for notifications badge
+  // Realtime for notifications badge
     const notifChan = supabase
       .channel('student_unread_watch')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${parsedUser.id}` }, () => fetchUnread(parsedUser.id))
@@ -121,7 +124,7 @@ export default function StudentDashboard() {
     };
   }, [router]);
 
-  // Fetch unread notifications count
+  // Fetch unread notifications count for badge
   const fetchUnread = async (userId: string) => {
     try {
       const { count } = await supabase
@@ -133,7 +136,7 @@ export default function StudentDashboard() {
     } catch {}
   };
 
-  // Fetch menu items from database
+  // Fetch menu items from database (and sync cart quantities to latest stock)
   const fetchMenuItems = async () => {
     try {
       const { data, error } = await supabase
@@ -159,7 +162,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Fetch updated user balance
+  // Fetch updated user balance and persist in localStorage
   const fetchUserBalance = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -186,7 +189,7 @@ export default function StudentDashboard() {
     return normalized === categoryFilter;
   });
 
-  // Add item to cart
+  // Add item to cart (guards against zero stock and max stock limits)
   const handleAddToCart = (item: MenuItem, note?: string) => {
     // Add item to cart with stock guard
     if (item.stock <= 0) {
@@ -212,6 +215,7 @@ export default function StudentDashboard() {
   };
 
   const incrementQty = (id: string) => {
+    // Increase quantity with stock clamp
     setCart((prev) => prev.map((ci) => {
       if (ci.id !== id) return ci;
       if (ci.quantity >= ci.stock) {
@@ -223,6 +227,7 @@ export default function StudentDashboard() {
   };
 
   const decrementQty = (id: string) => {
+    // Decrease quantity but not below 1
     setCart((prev) => prev.map((ci) => (ci.id === id ? { ...ci, quantity: Math.max(1, ci.quantity - 1) } : ci)));
   };
 
@@ -237,7 +242,7 @@ export default function StudentDashboard() {
     try { localStorage.removeItem("cart_v1"); } catch {}
   };
 
-  // Handle successful checkout
+  // Handle successful checkout (reset cart and refresh data)
   const handleCheckout = () => {
     setCart([]);
     try { localStorage.removeItem("cart_v1"); } catch {}
@@ -325,6 +330,7 @@ export default function StudentDashboard() {
       <div
         className="max-w-7xl mx-auto"
         onTouchStart={(e) => {
+          // Track initial touch point
           const t = e.touches[0];
           touchStartX.current = t.clientX;
           touchStartY.current = t.clientY;
@@ -341,6 +347,7 @@ export default function StudentDashboard() {
           }
         }}
         onTouchEnd={() => {
+          // Switch tabs on sufficient horizontal swipe
           const threshold = 60; // px swipe threshold
           const dx = touchDX.current;
           touchStartX.current = null;

@@ -1,4 +1,7 @@
 "use client";
+// Lightweight client error reporter used across routes. When embedded in the
+// visual editor iframe, it forwards window errors and Next.js dev overlay
+// messages to the parent via postMessage. On global-error, it renders a UI.
 
 import { useEffect, useRef } from "react";
 
@@ -11,7 +14,8 @@ type ReporterProps = {
 export default function ErrorReporter({ error, reset }: ReporterProps) {
   /* ─ instrumentation shared by every route ─ */
   const lastOverlayMsg = useRef("");
-  const pollRef = useRef<NodeJS.Timeout>();
+  // Holds the interval id for polling the Next.js overlay in dev
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const inIframe = window.parent !== window;
@@ -63,12 +67,12 @@ export default function ErrorReporter({ error, reset }: ReporterProps) {
 
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onReject);
-    pollRef.current = setInterval(pollOverlay, 1000);
+  pollRef.current = setInterval(pollOverlay, 1000);
 
     return () => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onReject);
-      pollRef.current && clearInterval(pollRef.current);
+  window.removeEventListener("error", onError);
+  window.removeEventListener("unhandledrejection", onReject);
+  if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 

@@ -1,4 +1,6 @@
 "use client";
+// Order history component: shows active and completed orders with realtime updates,
+// supports student pickup confirmation and handles completion when both sides confirm.
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
@@ -34,6 +36,7 @@ export default function OrderHistory({ userId }: OrderHistoryProps) {
     }
   };
 
+  // Subscribe to order changes for this user; refresh on any insert/update/delete
   useEffect(() => {
     fetchOrders();
 
@@ -59,6 +62,8 @@ export default function OrderHistory({ userId }: OrderHistoryProps) {
     };
   }, [userId]);
 
+  // Mark student's pickup confirmation; if owner already confirmed, complete the order.
+  // Otherwise, notify owners to confirm. Includes fallbacks for missing enums/columns.
   const handleStudentPickedUp = async (order: any) => {
     try {
       setUpdatingId(order.id);

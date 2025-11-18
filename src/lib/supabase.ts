@@ -1,14 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+// Supabase client setup and shared TypeScript types for the app's database rows.
 
 // Hardcoded Supabase credentials - replace these with your actual values
 // Get these from: Supabase Dashboard → Settings → API
 const supabaseUrl = "https://bsiaytpcahaoyqgkrbse.supabase.co"; // Replace with your Project URL
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzaWF5dHBjYWhhb3lxZ2tyYnNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MjQ4MTAsImV4cCI6MjA3NzIwMDgxMH0.wMUhTMuIVt57sfJ7BiiY5FDzFnVNRZ2t5ogY5A3sXt8"; // Replace with your anon/public key
 
-// Create Supabase client
+// Create Supabase client (used across the app via imports)
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Database types for TypeScript
+// Database types for TypeScript (shape of rows and enums used by the app)
 export type User = {
   id: string;
   name: string;

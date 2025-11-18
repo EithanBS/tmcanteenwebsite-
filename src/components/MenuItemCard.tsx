@@ -1,4 +1,5 @@
 "use client";
+// Menu item card: shows image, price, stock badge, and optional note input for drinks.
 
 import { MenuItem } from "@/lib/supabase";
 import { useState } from "react";
@@ -21,7 +22,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
 
   return (
     <Card className="overflow-hidden glass-card glow-border transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl hover:glow-pulse relative">
-      {/* Subtle gradient ring */}
+  {/* Subtle gradient ring */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--primary)/15%,transparent_60%)]" />
       <div className="aspect-square relative bg-secondary/30 group">
         <Image
@@ -76,6 +77,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
             </span>
           </div>
         </div>
+        {/* Simple note field for drinks (e.g., less ice) */}
         {!isFood && (
           <div>
             <input

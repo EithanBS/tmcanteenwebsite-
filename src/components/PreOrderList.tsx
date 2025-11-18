@@ -1,4 +1,5 @@
 "use client";
+// Pre-orders list: shows upcoming orders (status=preorder) with realtime refresh.
 
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
@@ -13,6 +14,7 @@ export default function PreOrderList({ userId }: PreOrderListProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Load user's pre-orders from the database sorted by scheduled date
   const fetchPreorders = async () => {
     try {
       const { data, error } = await supabase
@@ -30,6 +32,7 @@ export default function PreOrderList({ userId }: PreOrderListProps) {
     }
   };
 
+  // Refresh on mount and subscribe to any changes to the user's orders
   useEffect(() => {
     fetchPreorders();
     const channel = supabase

@@ -1,4 +1,6 @@
 "use client";
+// Owner scan-to-charge: scan student QR, optionally select items to sell,
+// verify PIN, decrement stock, insert order, and charge the student.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, User, MenuItem } from '@/lib/supabase';
@@ -21,6 +23,7 @@ export default function OwnerScanStudentPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<Array<{ id: string; name: string; price: number; quantity: number; stock: number }>>([]);
 
+  // Auth guard and owner items subscription
   useEffect(() => {
     const raw = localStorage.getItem('user');
     if (!raw) { router.push('/login'); return; }
@@ -42,6 +45,7 @@ export default function OwnerScanStudentPage() {
     return () => { supabase.removeChannel(ch); };
   }, [router]);
 
+  // Handle QR scan result: accept UUID string or JSON payload and load student
   const handleScan = async (code: string) => {
     try {
       setError(null);
@@ -63,6 +67,7 @@ export default function OwnerScanStudentPage() {
 
   const cancelScan = () => { setScanning(true); setStudent(null); setError(null); };
 
+  // Confirm payment: optionally create order from selected items then deduct wallet
   const confirmCharge = async () => {
     if (!student) return;
     // If items selected, compute amount from cart; else use manual amount

@@ -1,4 +1,6 @@
 "use client";
+// Wallet page: top up, send, request, and view transaction history.
+// Keeps balance in sync via realtime subscription and localStorage.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -31,6 +33,7 @@ export default function WalletPage() {
   const [requestEmail, setRequestEmail] = useState("");
   const [requestAmount, setRequestAmount] = useState("");
 
+  // Auth guard and initial data load + realtime balance subscription
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (!userData) {

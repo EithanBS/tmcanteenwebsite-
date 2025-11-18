@@ -96,15 +96,33 @@ export default function StudentAccountPage() {
 
   if (!user || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading…</p>
+      <div
+        className="relative min-h-screen flex items-center justify-center"
+        style={{
+          backgroundImage: "url('/BG1(Green).gif')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/30" />
+        <p className="relative z-10 text-white">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div
+      className="relative min-h-screen p-4 md:p-8"
+      style={{
+        backgroundImage: "url('/BG1(Green).gif')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="relative z-10 max-w-3xl mx-auto space-y-6">
         <Card className="p-6 glass-card glow-border">
           <div className="flex items-center justify-between">
             <div>

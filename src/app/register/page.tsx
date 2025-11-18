@@ -1,4 +1,6 @@
 "use client";
+// Registration page: validates full name and PIN, checks for duplicate email,
+// then inserts a new student user into Supabase.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -92,7 +94,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Store user info and redirect to login
+  // Store user info and redirect to login
       alert("Registration successful! Please login.");
       router.push("/login");
     } catch (err) {

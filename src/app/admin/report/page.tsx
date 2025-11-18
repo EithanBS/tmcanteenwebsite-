@@ -1,4 +1,6 @@
 "use client";
+// Admin monthly report: aggregates orders for a selected month, computes KPIs,
+// top items, daily breakdown, and highlights low-stock hot sellers.
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, Order, MenuItem, User } from '@/lib/supabase';
@@ -24,6 +26,7 @@ export default function AdminMonthlyReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Auth guard: ensure admin user
   useEffect(() => {
     const ustr = localStorage.getItem('user');
     if (!ustr) { router.push('/login'); return; }
@@ -32,8 +35,10 @@ export default function AdminMonthlyReportPage() {
     setUser(u);
   }, [router]);
 
+  // Fetch whenever user or month/year changes
   useEffect(() => { if (user) { fetchData(); } }, [user, month, year]);
 
+  // Load orders within month range and current menu items
   const fetchData = async () => {
     setLoading(true); setError(null);
     try {
@@ -82,6 +87,7 @@ export default function AdminMonthlyReportPage() {
     return res;
   }, [orders]);
 
+  // Aggregate quantities and revenue per menu item
   const aggregatedItems: AggregatedItem[] = useMemo(() => {
     const map = new Map<string, AggregatedItem>();
     for (const o of orders) {
@@ -101,6 +107,7 @@ export default function AdminMonthlyReportPage() {
   const topByQuantity = aggregatedItems.slice(0,5);
   const topByRevenue = [...aggregatedItems].sort((a,b) => b.revenue - a.revenue).slice(0,5);
 
+  // Orders and revenue per day within the selected month
   const dailyBreakdown = useMemo(() => {
     const dayMap = new Map<string, { orders: number; revenue: number }>();
     for (const o of orders) {
@@ -111,6 +118,7 @@ export default function AdminMonthlyReportPage() {
     return Array.from(dayMap.entries()).sort(([a],[b]) => a.localeCompare(b));
   }, [orders]);
 
+  // Items that sold and are now at or below stock threshold
   const lowStockHotItems = useMemo(() => {
     const set = new Set(aggregatedItems.map(i => i.id));
     return menuItems.filter(mi => set.has(mi.id) && mi.stock <= 5)

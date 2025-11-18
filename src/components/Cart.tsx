@@ -1,4 +1,7 @@
 "use client";
+// Shopping cart component: shows selected items, enforces stock/affordability,
+// supports pre-orders, performs atomic stock decrement and order creation,
+// updates wallet, writes a transaction, and notifies owners.
 
 // Stock protection notes:
 // 1. Front-end: plus button disabled when quantity reaches item.stock (if provided).
@@ -93,6 +96,8 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
 
   const willExceedBudget = monthlyBudget != null && (spentMTD + totalPrice) > (monthlyBudget || 0);
 
+  // Main checkout flow: validates, reserves stock, creates order, updates wallet,
+  // records a transaction, and emits notifications. Falls back where schema differs.
   const handleCheckout = async () => {
     if (!canAfford) {
       alert("Insufficient balance. Please top up your wallet.");
@@ -121,7 +126,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-      // Pre-fetch current stock and owner for involved items
+  // Pre-fetch current stock and owner for involved items
       const ids = items.map((i) => i.id);
       const { data: beforeRows } = await supabase
         .from('menu_items')
@@ -129,7 +134,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
         .in('id', ids);
       const beforeMap = new Map((beforeRows || []).map((r: any) => [r.id, r]));
 
-      // Atomic stock decrement via RPC (will throw if insufficient)
+    // Atomic stock decrement via RPC (will throw if insufficient)
   const rpcPayload = items.map(i => ({ id: i.id, quantity: i.quantity }));
   const { error: rpcError } = await supabase.rpc('decrement_stock', { p_items: rpcPayload });
       if (rpcError) {
@@ -156,7 +161,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
         }
       }
 
-      // Create order in database
+  // Create order in database
       const scheduled_for = isPreOrder ? preOrderDate!.toISOString().slice(0, 10) : null;
       const status = isPreOrder ? "preorder" : "processing";
       let { data: order, error: orderError } = await supabase
@@ -210,7 +215,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
 
       if (orderError) throw orderError;
 
-      // Notify impacted owners about the new order (pre-order or normal)
+  // Notify impacted owners about the new order (pre-order or normal)
       try {
         const impactedOwnerIds = Array.from(new Set(items.map(i => (beforeMap.get(i.id) as any)?.owner_id).filter(Boolean)));
         if (impactedOwnerIds.length && order) {
@@ -240,7 +245,7 @@ export default function Cart({ items, onRemoveItem, onClearCart, onCheckout, use
 
   // (Stock already decremented above either via RPC or fallback updates.)
 
-      // Create transaction record
+  // Create transaction record
       await supabase.from("transactions").insert([
         {
           sender_id: user.id,

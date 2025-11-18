@@ -1,4 +1,6 @@
 "use client";
+// Admin dashboard: manage users, menu items, orders, and transactions.
+// Includes inline editing for menu items, balance adjustments, and role changes.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -64,7 +66,7 @@ export default function AdminDashboard() {
     fetchAllData();
   }, [router]);
 
-  // Fetch all data
+  // Fetch all data for tabs in parallel
   const fetchAllData = async () => {
     try {
       await Promise.all([
@@ -134,7 +136,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Fetch all transactions
+  // Fetch all transactions (latest 50)
   const fetchTransactions = async () => {
     try {
       const { data, error } = await supabase
@@ -175,7 +177,7 @@ export default function AdminDashboard() {
     setEditMenuOwnerId("");
   };
 
-  // Save edited menu item
+  // Save edited menu item (supports either image_url or image)
   const saveEditMenuItem = async () => {
     if (!editingMenuId) return;
 
@@ -344,7 +346,7 @@ export default function AdminDashboard() {
     return owner ? owner.name : "Unknown Owner";
   };
 
-  // Group menu items by owner
+  // Group menu items by owner for display
   const menuByOwner = menuItems.reduce((acc, item) => {
     if (!acc[item.owner_id]) {
       acc[item.owner_id] = [];
@@ -361,6 +363,7 @@ export default function AdminDashboard() {
   };
 
   const findMatchingOrder = (tx: Transaction) => {
+    // Attempt to match a transaction of type 'order' to an order by user and amount
     if (tx.type !== "order") return null;
     // Find orders by same user and amount; choose one nearest in time
     const candidates = orders.filter(
