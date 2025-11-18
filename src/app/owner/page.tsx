@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3, Bell, QrCode } from "lucide-react";
+import { LogOut, ShoppingBag, Package, Edit2, Check, BarChart3, Bell, QrCode, XCircle } from "lucide-react";
 import Image from "next/image";
 
 export default function OwnerDashboard() {
@@ -32,6 +32,7 @@ export default function OwnerDashboard() {
   const [newPrice, setNewPrice] = useState("");
   const [newStock, setNewStock] = useState("");
   const [newImage, setNewImage] = useState("");
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
 
   // Check if user is logged in as owner
   useEffect(() => {
@@ -184,6 +185,101 @@ export default function OwnerDashboard() {
     } catch (error) {
       console.error("Error updating order:", error);
       alert("Failed to update order status");
+    }
+  };
+
+  // Owner cancels an order: refund student wallet, restore stock, set status to 'canceled', notify student
+  const handleCancelOrder = async (order: any) => {
+    if (cancelingOrderId) return;
+    try {
+      // Verify this order is fully owned by this owner
+      const allMine = (order?.items || []).every((it: any) => ownerItemIds.has(it.id));
+      if (!allMine) {
+        alert("You can only cancel orders that contain only your items.");
+        return;
+      }
+      if (order.status === 'completed') {
+        alert('Cannot cancel a completed order');
+        return;
+      }
+
+      setCancelingOrderId(order.id);
+
+      // 1) Restore stock for each item in the order
+      for (const it of (order.items || [])) {
+        try {
+          const { data: itemRow, error: itemErr } = await supabase
+            .from('menu_items')
+            .select('stock')
+            .eq('id', it.id)
+            .single();
+          if (itemErr) throw itemErr as any;
+          const newStock = (itemRow?.stock || 0) + (it.quantity || 0);
+          const { error: updErr } = await supabase
+            .from('menu_items')
+            .update({ stock: newStock })
+            .eq('id', it.id);
+          if (updErr) console.warn('Stock restore failed for item', it.id, updErr);
+        } catch (e) {
+          console.warn('Stock restore exception for item', it?.id, e);
+        }
+      }
+
+      // 2) Refund the student
+      const { data: stu, error: stuErr } = await supabase
+        .from('users')
+        .select('wallet_balance')
+        .eq('id', order.user_id)
+        .single();
+      if (stuErr) throw stuErr as any;
+      const refundAmount = order.total_price || 0;
+      const newBal = (stu?.wallet_balance || 0) + refundAmount;
+      const { error: balErr } = await supabase
+        .from('users')
+        .update({ wallet_balance: newBal })
+        .eq('id', order.user_id);
+      if (balErr) throw balErr as any;
+
+      // 3) Add a transaction record (refund)
+      try {
+        await supabase.from('transactions').insert([
+          { sender_id: null, receiver_id: order.user_id, amount: refundAmount, type: 'refund' }
+        ] as any);
+      } catch {}
+
+      // 4) Update order status to 'canceled'
+      try {
+        const { error: ordErr } = await supabase
+          .from('orders')
+          .update({ status: 'canceled', canceled_at: new Date().toISOString() })
+          .eq('id', order.id);
+        if (ordErr) console.warn('Setting status canceled failed:', ordErr);
+      } catch (e) {
+        console.warn('Order status cancel exception:', e);
+      }
+
+      // 5) Notify the student
+      try {
+        await supabase.from('notifications').insert([
+          {
+            user_id: order.user_id,
+            role: 'student',
+            type: 'order_canceled',
+            title: 'Order canceled',
+            message: 'Your order has been canceled by the canteen. A refund has been issued.',
+            link: '/student',
+            meta: { order_id: order.id, amount: refundAmount }
+          }
+        ] as any);
+      } catch {}
+
+      alert('Order canceled and refund issued.');
+      fetchOrders();
+    } catch (e) {
+      console.error('Cancel order failed', e);
+      alert('Failed to cancel order.');
+    } finally {
+      setCancelingOrderId(null);
     }
   };
 
@@ -475,6 +571,14 @@ export default function OwnerDashboard() {
                               <Check className="mr-2 h-4 w-4" />
                               Mark as Ready
                             </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => handleCancelOrder(order)}
+                              disabled={cancelingOrderId === order.id}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              {cancelingOrderId === order.id ? 'Canceling…' : 'Cancel Order'}
+                            </Button>
                           </div>
                         </div>
                       </Card>
@@ -537,6 +641,14 @@ export default function OwnerDashboard() {
                                 Picked Up
                               </Button>
                             )}
+                            <Button
+                              variant="destructive"
+                              onClick={() => handleCancelOrder(order)}
+                              disabled={cancelingOrderId === order.id}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              {cancelingOrderId === order.id ? 'Canceling…' : 'Cancel Order'}
+                            </Button>
                           </div>
                         </div>
                       </Card>

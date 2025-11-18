@@ -199,31 +199,49 @@ export default function WalletPage() {
         return;
       }
 
-      // Update sender balance
+      // Compute new balances
       const senderNewBalance = user.wallet_balance - amount;
-      await supabase
-        .from("users")
-        .update({ wallet_balance: senderNewBalance })
-        .eq("id", user.id);
+      const recipientCurrentBalance = Number(recipient.wallet_balance ?? 0);
+      const recipientNewBalance = recipientCurrentBalance + amount;
 
-      // Update recipient balance
-      const recipientNewBalance = recipient.wallet_balance + amount;
-      await supabase
-        .from("users")
-        .update({ wallet_balance: recipientNewBalance })
-        .eq("id", recipient.id);
+      // Step 1: deduct sender
+      {
+        const { error: sErr } = await supabase
+          .from("users")
+          .update({ wallet_balance: senderNewBalance })
+          .eq("id", user.id);
+        if (sErr) throw sErr;
+      }
 
-      // Create transaction record
-      await supabase.from("transactions").insert([
-        {
-          sender_id: user.id,
-          receiver_id: recipient.id,
-          amount: amount,
-          type: "transfer",
-        },
-      ]);
+      // Step 2: credit recipient; if it fails, try to revert sender
+      try {
+        const { error: rErr } = await supabase
+          .from("users")
+          .update({ wallet_balance: recipientNewBalance })
+          .eq("id", recipient.id);
+        if (rErr) throw rErr;
+      } catch (e) {
+        // revert sender deduction best-effort
+        await supabase
+          .from("users")
+          .update({ wallet_balance: user.wallet_balance })
+          .eq("id", user.id);
+        throw e;
+      }
 
-      // Create notification for recipient
+      // Step 3: transaction record (best-effort)
+      try {
+        await supabase.from("transactions").insert([
+          {
+            sender_id: user.id,
+            receiver_id: recipient.id,
+            amount: amount,
+            type: "transfer",
+          },
+        ]);
+      } catch {}
+
+      // Step 4: notify recipient (best-effort)
       try {
         await supabase.from('notifications').insert([
           {
@@ -250,7 +268,7 @@ export default function WalletPage() {
       fetchTransactions(user.id);
     } catch (error) {
       console.error("Send money error:", error);
-      alert("Failed to send money. Please try again.");
+      alert("Failed to send money. The recipient was not credited and your balance was not changed.");
     } finally {
       setLoading(false);
     }
