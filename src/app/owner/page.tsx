@@ -1151,7 +1151,7 @@ export default function OwnerDashboard() {
 
           {/* Pre-Orders Tab */}
           <TabsContent value="preorders">
-            <OwnerPreOrders ownerId={user.id} />
+            <OwnerPreOrders ownerId={user.id} ownerItemIds={Array.from(ownerItemIds)} />
           </TabsContent>
         </Tabs>
       </div>
@@ -1160,7 +1160,7 @@ export default function OwnerDashboard() {
 }
 
 // Pre-Orders tab content for Owner
-function OwnerPreOrders({ ownerId }: { ownerId: string }) {
+function OwnerPreOrders({ ownerId, ownerItemIds }: { ownerId: string; ownerItemIds: string[] }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1170,7 +1170,7 @@ function OwnerPreOrders({ ownerId }: { ownerId: string }) {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('status', 'preorder')
+        .or('status.eq.preorder,scheduled_for.not.is.null')
         .order('scheduled_for', { ascending: true, nullsFirst: false });
       if (error) throw error as any;
       const base = (data || [])
@@ -1189,7 +1189,8 @@ function OwnerPreOrders({ ownerId }: { ownerId: string }) {
         }
       }));
       // Filter to only orders fully owned by this owner if items include owner_id
-      const mine = withUser.filter((o: any) => o.items.every((it: any) => (it.owner_id ? it.owner_id === ownerId : true)));
+  // keep only orders where every item is owned by this owner, if we have owner ids in items
+  const mine = withUser.filter((o: any) => o.items.every((it: any) => ownerItemIds.length ? ownerItemIds.includes(it.id) : true));
       setOrders(mine);
     } catch (e) {
       console.error('fetchPreorders owner', e);
